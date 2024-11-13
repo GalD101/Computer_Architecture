@@ -1,0 +1,9 @@
+Run the gcc compiler on the given Hello.s file by using the following command:
+gcc --no-pie Hello.s
+
+This will create a a.out file which can be executed.
+Run the a.out file by simply running:
+./a.out
+
+This should print out Hello World!
+
