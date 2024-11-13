@@ -82,8 +82,9 @@ main:
     
     # Modulo the result by 11
     xorq    %rdx, %rdx                      # Clear rdx before division
-    movq    $11, %rcx                       # Set divisor to 11
+    movq    $10, %rcx                       # Set divisor to 10
     div     %rcx                            # rax = quotient, rdx = remainder
+    inc     %rdx
     movq    %rdx, rnd_num_generated(%rip)   # Store remainder in rnd_num_generated
 
     # Print the random value (mod result)
