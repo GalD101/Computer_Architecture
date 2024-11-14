@@ -101,8 +101,28 @@ movq    $usr_guess_prmpt, %rdi
 movq    $0, %rax
 call    printf
 
+# Scan guess from the user
+mov     $scanf_fmt_guess, %rdi
+lea     usr_input_guess(%rip), %rsi
+movq    $0, %rax
+call scanf
+
 # determine the flow based on the user's input
-#TODO
+# TODO
+
+movq    usr_input_yes_or_no(%rip), %rax # copy the value of the user's guess to a temporary register in order to compare
+cmpq    $yes_chr, %rax                  # check if user said yes (y)
+je      easy_mode
+cmpq    $no_chr, %rax                   # check if user said no (n)
+je      not_easy_mode
+
+
+not_easy_mode:
+# boiler-plate code to exit program
+movq    $0, %rax                        # return value is zero (just like in c - we tell the OS that this program finished seccessfully)
+movq    %rbp, %rsp                      # restore the old stack pointer - release all used memory.
+popq    %rbp                            # restore old frame pointer (the caller function frame)
+ret                                     # return to caller function (OS)
 
 
 
@@ -115,10 +135,13 @@ call    printf
 
 
 
+easy_mode:
 
-
-
-
+# Print the random value (mod result) (testing)
+movq    $scanf_fmt_seed, %rdi           # printf format string like "%d\n"
+movq    rnd_num_generated(%rip), %rsi   # Load the result to be printed
+movq    $0, %rax                        # Clear rax for variadic function
+call    printf
 
 
 
@@ -132,16 +155,8 @@ call    printf
 
 
 # Print the random value (mod result) (testing)
-movq    $scanf_fmt_seed, %rdi           # printf format string like "%d\n"
-movq    rnd_num_generated(%rip), %rsi   # Load the result to be printed
-movq    $0, %rax                        # Clear rax for variadic function
-call    printf
-
-
-
-# boiler-plate code to exit program
-movq	$0, %rax	                    # return value is zero (just like in c - we tell the OS that this program finished seccessfully)
-movq	%rbp, %rsp	                    # restore the old stack pointer - release all used memory.
-popq	%rbp		                    # restore old frame pointer (the caller function frame)
-ret			                            # return to caller function (OS)
+// movq    $scanf_fmt_seed, %rdi           # printf format string like "%d\n"
+// movq    rnd_num_generated(%rip), %rsi   # Load the result to be printed
+// movq    $0, %rax                        # Clear rax for variadic function
+// call    printf
 
