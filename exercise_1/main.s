@@ -8,7 +8,6 @@
 .section		.rodata
 
 # Initial values for N and M
-N:          .quad 0x0A # Will grow exponentially
 M:          .quad 0x05
 
 # yes and no characters to determine flow
@@ -21,7 +20,7 @@ scanf_fmt_seed:         .string "%d"
 
 usr_easy_mode_prmpt:    .string "Would you like to play in easy mode? (y/n) "
 scanf_fmt_yes_or_no:    .string " %c" # the space is important here to ignore white space before
-testingggg:    .string "%c"
+testingggg:    .string "%ld\n"
 
 usr_guess_prmpt:	    .string "What is your guess? "
 scanf_fmt_guess:        .string "%d"
@@ -35,27 +34,46 @@ double_or_nothing:  .string "Double or nothing! Would you like to continue to an
 ########################
 .section .data
 
+N:          .quad 0x0A # Will grow exponentially
+
 # create memory for the user input
-usr_input_seed:         .quad 0x00 # Let the seed be a quad because it may be very big
+usr_input_seed:         .long 0x00 # Let the seed be a long (matches int according to presentation 4 slide 34) because srand signature is srand(unsigned int seed);
 usr_input_yes_or_no:    .byte 0 # This can only take 'y' or 'n' so it should only be 1 byte
 usr_input_guess:        .quad 0x00 # The guess could get very big if we continue to more round (in fact the game becomes harder exponentially)
 rnd_num_generated:      .quad 0x00 # This can get very big when we go to hugher round
 ########################
 
-
-
-
-
-# TODO:
-#       create labels so it will be easy to follow the program and how it runs
-#       figure out how to read user input
-#       before coding, make sure you understand the flow and what should happen
-#       don't use main as a function. Refer to what they learned in class
-#       create labels for each step of the program and set flag is rodata to determine what mode to run (easy mode, double or nothing, or the noraml one)
-# Change suffix from q to something that is more memory efficient
-
-
 .section    .text
+
+
+
+.global gen_rnd_num
+.type gen_rnd_num, @function
+gen_rnd_num:
+    # boiler-plate code (copied from the examples in the exercise)
+    pushq	%rbp                            # save the old frame pointer
+    movq	%rsp,	%rbp	                # create the new frame pointer
+
+    pushq   %rsi                            # save N (which is in rsi). We will need this after the call to srand & rand so save it in the stack
+    # Call srand with the seed
+    movl    %edi, %edi                      # set the address of the usr_input_seed as the first (and only) argument for srand (passing by address)
+    call    srand
+
+    # Call rand
+    call    rand                            # the result from rand is now stored at rax (so it is also in eax (same register smaller portion of it)
+
+    # Modulo the result from rand (which is stored in rax) by N and add 1
+    popq    %rsi                            # retrieve N
+    movq    $0, %rdx                        # clear rdx TODO: Check if this is necessary
+    movq    %rsi, %rcx
+    div     %rcx                            # rax = quotient, rdx = remainder. this is just how div works - not intuitive at all :(
+    inc     %rdx                            # add 1 to match the examples in the assignment instructions
+    movq    %rdx, rnd_num_generated(%rip)   # Store remainder in rnd_num_generated
+    movq    rnd_num_generated(%rip), %rax
+
+    popq    %rbp
+    ret
+
 .global     main
 .type main, @function
 main:
@@ -75,25 +93,10 @@ leaq    usr_input_seed(%rip), %rsi      # set the address of usr_input_seed as t
 call    scanf
 
 
-# call gen_rnd_num(seed, N, rounds)
-#################################################################################################################################################
-# Call srand with the seed
-movq    usr_input_seed(%rip), %rdi      # set the address of the usr_input_seed as the first (and only) argument for srand (passing by address)
-movq    $0, %rax                        # clear the rax register (it is customary to do this before every function call)
-call    srand
-
-# Call rand
-movq    $0, %rdi                        # zero the rdi register (WHY?????)
-movq    $0, %rax                        # clear the rax register (it is customary to do this before every function call)
-call    rand                            # the result from rand is now stored at rax (so it is also in eax (same register smaller portion of it)
-
-# Modulo the result from rand (which is stored in rax) by N and add 1
-movq    $0, %rdx                        # clear rdx
-movq    N(%rip), %rcx
-div     %rcx                            # rax = quotient, rdx = remainder. this is just how div works - not intuitive at all :(
-inc     %rdx                            # add 1 to match the examples in the assignment instructions
-movq    %rdx, rnd_num_generated(%rip)   # Store remainder in rnd_num_generated
-#################################################################################################################################################
+movl    usr_input_seed(%rip), %edi
+movq    N(%rip), %rsi
+call    gen_rnd_num
+movq    %rax, rnd_num_generated(%rip)
 
 
 # Print easy mode prompt
@@ -107,8 +110,9 @@ leaq    usr_input_yes_or_no(%rip), %rsi # TODO: check if leaw is good or just le
 movq    $0, %rax
 call    scanf
 
+ask_for_guess_loop:
+movb    M(%rip), %cl                         # ECX is for counter (according to lecture 4 slide 9) so I will use only the last 8 bits of it (internet says it is cl) The counter will be initialized to M. zbl will make the rest of the register filled with 0's
 
-ask_for_guess:
 # Print prompt asking for guess
 movq    $usr_guess_prmpt, %rdi
 movq    $0, %rax
@@ -120,42 +124,73 @@ leaq    usr_input_guess(%rip), %rsi
 movq    $0, %rax
 call scanf
 
-# TODO determine the flow based on the user's input
+decb    %cl
 
+# The following is analogous to if (!((guess != rnd_num) && (counter != 0))) {goto round_finish;}
+# in the C program I wrote before jumping into Assembly
 
-# TODO: THIS IS INEFFICIENT SINCE WE ARE CHECKING IT EVERY TIME WE JMP TO ask_for_guess
-# Check if easy mode or not
-mov usr_input_yes_or_no(%rip), %rax
-cmp $'y', %rax
-je easy_mode
-cmp $'n', %rax
-je not_easy_mode
-
-not_easy_mode:  
-# TODO This is copy paste (here ans in easy_mode), maybe find a way to reduce code completion Compare guess with actual random number
+# C: if (guess == rnd_num){goto round_finish;}
 movq    rnd_num_generated(%rip), %rax
-movq    usr_input_guess(%rip), %rbx
-cmp     %rax, %rbx
-je double_or_nothing
+cmpq    %rax, usr_input_guess(%rip)
+je      round_finish
 
-# Print wrong answer message and go back to asking for guess
+# C: if (counter == 0)
+test    %cl, %cl                # this will "perform a 'mental' AND" so we will get ZF=1 iff %cl is 0 
+jz      round_finish
+
+# so if we got here, that must mean that ((guess != rnd_num) && (counter != 0))
+
+# Print wrong answer message
 movq    $incorrect, %rdi
 movq    $0, %rax
 call    printf
-jmp     ask_for_guess
+
+# Check if easy mode or not
+mov     usr_input_yes_or_no(%rip), %rax
+cmp     $'y', %rax
+je      .easy_mode
+
+
+# Where should I place this???? In the end of the file??
+.easy_mode:
+// cmp     usr_input_guess(%rip), rnd_num_generated(%rip)
+// jl      below
 
 
 
 
-easy_mode:
-# Compare guess with actual random number
-movq    rnd_num_generated(%rip), %rax
-movq    usr_input_guess(%rip), %rbx
-cmp     %rax, %rbx
+// je easy_mode
+// cmp $'n', %rax
+// je not_easy_mode
 
 
-double_or_nothing:
 
+
+
+
+
+
+
+
+
+
+
+
+
+round_finish:
+
+
+
+
+
+
+# Testing - Delete this when finished
+# Prepare to print rnd_num_generated
+movq    $testingggg, %rdi        # Load format string "%ld\n"
+movq    rnd_num_generated(%rip), %rsi  # Load the random number
+movq    $0, %rax                 # Clear %rax for variadic functions
+call    printf                   # Print the number
+##################
 
 
 # boiler-plate code to exit program

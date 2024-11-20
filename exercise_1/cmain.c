@@ -17,7 +17,7 @@ int main() {
     long N = 0xA; // will create rnd_num between 1,....10 inclusive (see gen_rnd_num for more info) 0xA = 10
     int counter = M; // initialize the number of mistaked counter
     int guess = 0x00; // initialize the guess to a number that can't be generated (Maybe set it's initial value to 0 in assembly too)
-    char is_double_or_nothing = 0x6e // Initialize double_or_nothing to 0x6e = 'n' (default is no)
+    char is_double_or_nothing = 0x6e; // Initialize double_or_nothing to 0x6e = 'n' (default is no)
 
 
     // Print the promt for the configuration seed (In assembly this would also be saved in .rodata but in C strings are not fun to work with, so I will just write them explicitly here)
@@ -44,30 +44,30 @@ int main() {
     //     goto round_finish;
     // }
     ask_for_guess_loop:
-            printf("What is your guess? ");
+        printf("What is your guess? ");
 
-            // These lines 'update' (so the loop won't be infinite)
-            scanf("%d", &guess);
-            counter -= 1;
-            ///////////////////////////////////////////////////////
+        // These lines 'update' (so the loop won't be infinite)
+        scanf("%d", &guess);
+        counter -= 1;
+        ///////////////////////////////////////////////////////
 
-            if ((guess != rnd_num) && (counter != 0)) {
-                printf("Incorrect. ");
+        if ((guess != rnd_num) && (counter != 0)) {
+            printf("Incorrect. ");
 
-                // In assembly, use cmp and then jmp or is there a better way?
-                if (is_easy_mode == 'y') {
-                    if (guess < rnd_num) {
-                        // Maybe in assembly use something like "Your guess was %s the actual number ...\n" and a condition to print the right answer (below or above)
-                        printf("Your guess was below the actual number ...\n");
-                    }
-                    else {
-                        printf("Your guess was above the actual number ...\n");
-                    }
+            // In assembly, use cmp and then jmp or is there a better way?
+            if (is_easy_mode == 'y') {
+                if (guess < rnd_num) {
+                    // Maybe in assembly use something like "Your guess was %s the actual number ...\n" and a condition to print the right answer (below or above)
+                    printf("Your guess was below the actual number ...\n");
                 }
-
-                // Keep looping until condition breaks
-                goto ask_for_guess_loop;
+                else {
+                    printf("Your guess was above the actual number ...\n");
+                }
             }
+
+            // Keep looping until condition breaks
+            goto ask_for_guess_loop;
+        }
     
     round_finish:
         if (guess != rnd_num) {
@@ -76,7 +76,7 @@ int main() {
             printf("\nGame over, you lost :(. The correct answer was %u\n", rnd_num);
 
             // quit the program
-            goto quit
+            goto quit;
         }
         
         
@@ -93,7 +93,7 @@ int main() {
             N <<= 1;
             counter = M;
             rnd_num = gen_rnd_num(seed, N);
-            goto loop;
+            goto ask_for_guess_loop;
         }
         // You are not supposed to get here
     return 0;
