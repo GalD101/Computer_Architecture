@@ -21,6 +21,7 @@ scanf_fmt_seed:         .string "%d"
 usr_easy_mode_prmpt:    .string "Would you like to play in easy mode? (y/n) "
 scanf_fmt_yes_or_no:    .string " %c" # the space is important here to ignore white space before
 testingggg:    .string "%ld\n"
+print_digit:    .string "%d\n"
 
 usr_guess_prmpt:	    .string "What is your guess? "
 scanf_fmt_guess:        .string "%d"
@@ -35,6 +36,7 @@ double_or_nothing:  .string "Double or nothing! Would you like to continue to an
 .section .data
 
 N:          .quad 0x0A # Will grow exponentially
+tries_left: .byte 0x05
 
 # create memory for the user input
 usr_input_seed:         .long 0x00 # Let the seed be a long (matches int according to presentation 4 slide 34) because srand signature is srand(unsigned int seed);
@@ -110,8 +112,9 @@ leaq    usr_input_yes_or_no(%rip), %rsi # TODO: check if leaw is good or just le
 movq    $0, %rax
 call    scanf
 
-ask_for_guess_loop:
 movb    M(%rip), %cl                         # ECX is for counter (according to lecture 4 slide 9) so I will use only the last 8 bits of it (internet says it is cl) The counter will be initialized to M. zbl will make the rest of the register filled with 0's
+movb    %cl, tries_left(%rip)
+ask_for_guess_looclp:
 
 # Print prompt asking for guess
 movq    $usr_guess_prmpt, %rdi
@@ -124,7 +127,18 @@ leaq    usr_input_guess(%rip), %rsi
 movq    $0, %rax
 call scanf
 
+
+# TESTING should print 5 
+movq    $print_digit, %rdi        # Load format string "%ld\n"
+movzb   tries_left(%rip), %rsi  # Load the random number
+movq    $0, %rax                 # Clear %rax for variadic functions
+call    printf                   # Print the number
+##################
+
+movb    tries_left(%rip), %cl
 decb    %cl
+movb    %cl, tries_left(%rip)
+
 
 # The following is analogous to if (!((guess != rnd_num) && (counter != 0))) {goto round_finish;}
 # in the C program I wrote before jumping into Assembly
