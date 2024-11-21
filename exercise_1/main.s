@@ -19,9 +19,10 @@ usr_cnfg_seed_prmpt:	.string "Enter configuration seed: "
 scanf_fmt_seed:         .string "%d"
 
 usr_easy_mode_prmpt:    .string "Would you like to play in easy mode? (y/n) "
-scanf_fmt_yes_or_no:    .string " %c" # the space is important here to ignore white space before
+scanf_fmt_chr:          .string " %c" # the space is important here to ignore white space before
 testingggg:    .string "%ld\n"
 print_digit:    .string "%d\n"
+print_chr:      .string "%c\n"
 
 usr_guess_prmpt:	    .string "What is your guess? "
 scanf_fmt_guess:        .string "%d"
@@ -29,20 +30,23 @@ scanf_fmt_guess:        .string "%d"
 # messages regarding the state of the game
 correct:			.string "Congratz! You won %u rounds!\n"
 incorrect:		    .string "Incorrect. "
+over_estimate:      .string "Your guess was above the actual number ...\n"
+under_estimate:     .string "Your guess was below the actual number ...\n"
 game_over:		    .string "\nGame over, you lost :(. The correct answer was %u\n"
-double_or_nothing:  .string "Double or nothing! Would you like to continue to another round? (y/n) "
+double_or_nothing_msg:  .string "Double or nothing! Would you like to continue to another round? (y/n) "
 
 ########################
 .section .data
 
 N:          .quad 0x0A # Will grow exponentially
 tries_left: .byte 0x05
-
+rounds:     .quad 0x01 # quad just to be safe
 # create memory for the user input
 usr_input_seed:         .long 0x00 # Let the seed be a long (matches int according to presentation 4 slide 34) because srand signature is srand(unsigned int seed);
-usr_input_yes_or_no:    .byte 0 # This can only take 'y' or 'n' so it should only be 1 byte
+usr_input_yes_or_no:    .byte 0    # This can only take 'y' or 'n' so it should only be 1 byte
 usr_input_guess:        .quad 0x00 # The guess could get very big if we continue to more round (in fact the game becomes harder exponentially)
 rnd_num_generated:      .quad 0x00 # This can get very big when we go to hugher round
+is_double_or_nothing:   .byte 0    # This can only take 'y' or 'n' so it should only be 1 byte
 ########################
 
 .section    .text
@@ -107,14 +111,14 @@ movq    $0, %rax
 call    printf
 
 # Scan the input from the user
-movq    $scanf_fmt_yes_or_no, %rdi      # set the format as the first input for scanf
+movq    $scanf_fmt_chr,         %rdi      # set the format as the first input for scanf
 leaq    usr_input_yes_or_no(%rip), %rsi # TODO: check if leaw is good or just lea. set the address of usr_input_seed as the second input for scanf (i.e. scanf("%d", &usr_input_seed))
 movq    $0, %rax
 call    scanf
 
 movb    M(%rip), %cl                         # ECX is for counter (according to lecture 4 slide 9) so I will use only the last 8 bits of it (internet says it is cl) The counter will be initialized to M. zbl will make the rest of the register filled with 0's
 movb    %cl, tries_left(%rip)
-ask_for_guess_looclp:
+ask_for_guess_loop:
 
 # Print prompt asking for guess
 movq    $usr_guess_prmpt, %rdi
@@ -129,8 +133,8 @@ call scanf
 
 
 # TESTING should print 5 
-movq    $print_digit, %rdi        # Load format string "%ld\n"
-movzb   tries_left(%rip), %rsi  # Load the random number
+movq    $print_digit, %rdi       # Load format string "%ld\n"
+mov     tries_left(%rip), %sil   # Load the random number
 movq    $0, %rax                 # Clear %rax for variadic functions
 call    printf                   # Print the number
 ##################
@@ -159,17 +163,38 @@ movq    $incorrect, %rdi
 movq    $0, %rax
 call    printf
 
-# Check if easy mode or not
-mov     usr_input_yes_or_no(%rip), %rax
-cmp     $'y', %rax
-je      .easy_mode
+
+# THIS IS JUST FOR DEBUGGING PURPOSES!
+movq    $print_chr, %rdi
+movq    usr_input_yes_or_no(%rip), %rsi
+movq    $0, %rax
+call    printf
+
+
+
+movzbq   usr_input_yes_or_no(%rip), %rax # Load the value into %rax
+cmpb     $'y', %al                      # Compare %al (lower 8 bits of rax) with 'y'
+je       easy_mode
+cmpb     $'n', %al                      # Compare %al (lower 8 bits of rax) with 'n'
+je       ask_for_guess_loop
 
 
 # Where should I place this???? In the end of the file??
-.easy_mode:
-// cmp     usr_input_guess(%rip), rnd_num_generated(%rip)
-// jl      below
-
+easy_mode:
+mov     rnd_num_generated(%rip), %rax
+cmp     usr_input_guess(%rip), %rax
+jg      below
+jmp     above
+print:
+movq    $0, %rax
+call    printf
+jmp     ask_for_guess_loop
+below:
+movq    $under_estimate, %rdi
+jmp     print
+above:
+movq    $over_estimate, %rdi
+jmp     print
 
 
 
@@ -189,24 +214,52 @@ je      .easy_mode
 
 
 
+// # Testing - Delete this when finished
+// # Prepare to print rnd_num_generated
+// movq    $testingggg, %rdi        # Load format string "%ld\n"
+// movq    rnd_num_generated(%rip), %rsi  # Load the random number
+// movq    $0, %rax                 # Clear %rax for variadic functions
+// call    printf                   # Print the number
+// ##################
+
+
+
+
 
 
 round_finish:
+xor     %rax, %rax
+movq    usr_input_guess(%rip), %rax
+cmpq    rnd_num_generated(%rip), %rax
+je      double_or_nothing
+jne     exit    # TEMP NEED TO FIX THIS! (maybe do print winning before exit and print incorrect before exit)
 
 
+double_or_nothing:
+# Print double or nothing prompt
+movq    $double_or_nothing_msg, %rdi
+movq    $0, %rax
+call    printf
+
+# Scan the input from the user
+movq    $scanf_fmt_chr, %rdi            # set the format as the first input for scanf
+leaq    is_double_or_nothing(%rip), %rsi
+movq    $0, %rax
+call    scanf
+
+# THIS IS JUST FOR DEBUGGING PURPOSES!
+movq    is_double_or_nothing(%rip), %rax
+cmpb    $'y', %al
+je      update_new_round
+
+# Print winning message
+movq    $correct, %rdi
+leaq    rounds(%rip), %rsi
+movq    $0, %rax
+call    printf
 
 
-
-
-# Testing - Delete this when finished
-# Prepare to print rnd_num_generated
-movq    $testingggg, %rdi        # Load format string "%ld\n"
-movq    rnd_num_generated(%rip), %rsi  # Load the random number
-movq    $0, %rax                 # Clear %rax for variadic functions
-call    printf                   # Print the number
-##################
-
-
+exit:
 # boiler-plate code to exit program
 movq    $0, %rax                        # return value is zero (just like in c - we tell the OS that this program finished seccessfully)
 movq    %rbp, %rsp                      # restore the old stack pointer - release all used memory.
