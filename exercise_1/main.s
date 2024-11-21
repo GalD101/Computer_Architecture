@@ -7,8 +7,8 @@
 
 .section		.rodata
 
-# Initial values for N and M
-M:          .quad 0x05
+# Initial value for M
+M:          .byte 0x05
 
 # yes and no characters to determine flow
 yes_chr:    .byte 'y'
@@ -39,7 +39,7 @@ double_or_nothing_msg:  .string "Double or nothing! Would you like to continue t
 .section .data
 
 N:          .quad 0x0A # Will grow exponentially
-tries_left: .byte 0x05
+tries_left: .byte 0x05 # TODO: Check if I can initialize this to M directly
 rounds:     .quad 0x01 # quad just to be safe
 # create memory for the user input
 usr_input_seed:         .long 0x00 # Let the seed be a long (matches int according to presentation 4 slide 34) because srand signature is srand(unsigned int seed);
@@ -132,12 +132,12 @@ movq    $0, %rax
 call scanf
 
 
-# TESTING should print 5 
-movq    $print_digit, %rdi       # Load format string "%ld\n"
-mov     tries_left(%rip), %sil   # Load the random number
-movq    $0, %rax                 # Clear %rax for variadic functions
-call    printf                   # Print the number
-##################
+// # TESTING should print 5 
+// movq    $print_digit, %rdi       # Load format string "%ld\n"
+// mov     tries_left(%rip), %sil   # Load the random number
+// movq    $0, %rax                 # Clear %rax for variadic functions
+// call    printf                   # Print the number
+// ##################
 
 movb    tries_left(%rip), %cl
 decb    %cl
@@ -164,11 +164,11 @@ movq    $0, %rax
 call    printf
 
 
-# THIS IS JUST FOR DEBUGGING PURPOSES!
-movq    $print_chr, %rdi
-movq    usr_input_yes_or_no(%rip), %rsi
-movq    $0, %rax
-call    printf
+// # THIS IS JUST FOR DEBUGGING PURPOSES!
+// movq    $print_chr, %rdi
+// movq    usr_input_yes_or_no(%rip), %rsi
+// movq    $0, %rax
+// call    printf
 
 
 
@@ -247,16 +247,46 @@ leaq    is_double_or_nothing(%rip), %rsi
 movq    $0, %rax
 call    scanf
 
-# THIS IS JUST FOR DEBUGGING PURPOSES!
 movq    is_double_or_nothing(%rip), %rax
 cmpb    $'y', %al
 je      update_new_round
 
 # Print winning message
 movq    $correct, %rdi
-leaq    rounds(%rip), %rsi
+movq    rounds(%rip), %rsi
 movq    $0, %rax
 call    printf
+jmp exit
+
+update_new_round:
+
+# Increment rounds counter
+movq    rounds(%rip), %rax
+incq    %rax
+movq    %rax, rounds(%rip)
+
+# multiply seed by 2 using shifts
+movl    usr_input_seed(%rip), %eax
+shll    $1, %eax
+movl    %eax, usr_input_seed(%rip)
+
+# multiply N by 2 using shifts
+movl    N(%rip), %eax
+shll    $1, %eax
+movl    %eax, N(%rip)
+
+# reset tries left counter
+movb    M(%rip), %al
+movb    tries_left(%rip), %al
+
+# generate new random number
+movl    usr_input_seed(%rip), %edi
+movq    N(%rip), %rsi
+call    gen_rnd_num
+movq    %rax, rnd_num_generated(%rip)
+
+# go to loop again to start a new round
+jmp ask_for_guess_loop
 
 
 exit:
