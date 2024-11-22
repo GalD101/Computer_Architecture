@@ -6,12 +6,11 @@
             "type": "shell",
             "command": "gcc",
             "args": [
-                "-g",             // Include debugging symbols
-                "-fno-pie",       // Do not generate position-independent code
-                "-no-pie",        // Disable PIE for the linker
+                "-g",
+                "-no-pie",
                 "-o",
-                "main.out",        // Output executable name
-                "main.s"          // Input assembly file
+                "main.out",
+                "main.s"
             ],
             "group": {
                 "kind": "build",

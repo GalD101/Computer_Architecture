@@ -5,13 +5,13 @@
             "name": "Debug Assembly Program",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/main.out",    // Path to the executable
-            "args": [],                                // Arguments for the program
-            "stopAtEntry": true,                      // Stop at the entry point
-            "cwd": "${workspaceFolder}",              // Set working directory
+            "program": "${workspaceFolder}/main.out",
+            "args": [],
+            "stopAtEntry": true,
+            "cwd": "${workspaceFolder}",
             "environment": [],
-            "externalConsole": false,                 // Use integrated terminal
-            "MIMode": "gdb",                          // Use GDB for debugging
+            "externalConsole": false,
+            "MIMode": "gdb",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for GDB",
@@ -24,8 +24,8 @@
                     "ignoreFailures": true
                 }
             ],
-            "miDebuggerPath": "/usr/bin/gdb",         // Adjust if gdb is in a different location
-            "preLaunchTask": "build"                 // Run the "build" task before debugging
+            "miDebuggerPath": "/usr/bin/gdb",
+            "preLaunchTask": "build"
         }
     ]
 }
