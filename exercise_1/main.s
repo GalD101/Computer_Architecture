@@ -3,43 +3,42 @@
 .extern srand
 .extern  rand
 
-########################
+# TODO: save local variables in stack instead of .data
+# .data is for initialized global static
+# .rodata is for read only data and is for global static initialized constants
+# .bss is for block starting symbol and is for non initialized global static variables
+
 
 .section		.rodata
 
-# Initial value for M
-M:          .byte 0x05
-
-# yes and no characters to determine flow
-yes_chr:    .byte 'y'
-no_chr:     .byte 'n'
+M:          .byte 0x05 # M is a the number of tries per round
+N:          .quad 0x0A # N is a the initial range for the random number
 
 # prompt messages asking for user input
 usr_cnfg_seed_prmpt:	.string "Enter configuration seed: "
-scanf_fmt_seed:         .string "%d"
-
 usr_easy_mode_prmpt:    .string "Would you like to play in easy mode? (y/n) "
-scanf_fmt_chr:          .string " %c" # the space is important here to ignore white space before
-testingggg:    .string "%ld\n"
-print_digit:    .string "%d\n"
-print_chr:      .string "%c\n"
-
 usr_guess_prmpt:	    .string "What is your guess? "
-scanf_fmt_guess:        .string "%d"
+
+# scanning string formats
+fmt_string_digit:       .string "%d"
+fmt_string_chr:         .string " %c" # the space is important here to ignore white space before
+
+# this is just for testing
+print_digit:            .string "%d\n"
+print_chr:              .string "%c\n"
 
 # messages regarding the state of the game
-correct:			.string "Congratz! You won %u rounds!\n"
-incorrect:		    .string "Incorrect. "
-over_estimate:      .string "Your guess was above the actual number ...\n"
-under_estimate:     .string "Your guess was below the actual number ...\n"
-game_over:		    .string "\nGame over, you lost :(. The correct answer was %u\n"
+congratulation_msg:		.string "Congratz! You won %u rounds!\n"
+incorrect_msg:	        .string "Incorrect. "
+over_estimate_msg:      .string "Your guess was above the actual number ...\n"
+under_estimate_msg:     .string "Your guess was below the actual number ...\n"
+game_over_msg:	        .string "\nGame over, you lost :(. The correct answer was %u\n"
 double_or_nothing_msg:  .string "Double or nothing! Would you like to continue to another round? (y/n) "
 
-########################
-.section .data
 
-N:          .quad 0x0A # Will grow exponentially
-tries_left: .byte 0x05 # TODO: Check if I can initialize this to M directly
+.section .data
+# TODO CHANGE THIS USE STACK INSTEAD!
+tries_left: .byte 0x05
 rounds:     .quad 0x01 # quad just to be safe
 # create memory for the user input
 usr_input_seed:         .long 0x00 # Let the seed be a long (matches int according to presentation 4 slide 34) because srand signature is srand(unsigned int seed);
@@ -47,25 +46,28 @@ usr_input_yes_or_no:    .byte 0    # This can only take 'y' or 'n' so it should 
 usr_input_guess:        .quad 0x00 # The guess could get very big if we continue to more round (in fact the game becomes harder exponentially)
 rnd_num_generated:      .quad 0x00 # This can get very big when we go to hugher round
 is_double_or_nothing:   .byte 0    # This can only take 'y' or 'n' so it should only be 1 byte
-########################
+
 
 .section    .text
 
-
-
 .global gen_rnd_num
 .type gen_rnd_num, @function
-gen_rnd_num:
-    # boiler-plate code (copied from the examples in the exercise)
+gen_rnd_num: # long gen_rnd_num(unsigned long seed, long N)
+    # boiler-plate code (copied from the examples in the exercise) to create stack frame (I think)
     pushq	%rbp                            # save the old frame pointer
     movq	%rsp,	%rbp	                # create the new frame pointer
 
-    pushq   %rsi                            # save N (which is in rsi). We will need this after the call to srand & rand so save it in the stack
-    # Call srand with the seed
-    movl    %edi, %edi                      # set the address of the usr_input_seed as the first (and only) argument for srand (passing by address)
-    call    srand
+    # use stack to create space for local variables
+    # I will need one unsigned long which is 8 bytes in 64-bit architecture (parameter seed) and one long which is also 8 bytes in 64-bit architecture (parameter N)
+    # so in total I will need 8 + 8 = 16 bytes in the stack (activation frame) for gen_rnd_num
+    # but I will immediately call srand with seed so I don't need to save it
+    # that means I will only need 8 bytes in the stack
+    subq    $0x10, %rsp                      # move rsp to create spcae for local variable N
+    pushq   %rsi                            # save N (which is in rsi because it is the second argument). We will need this after the call to srand & rand so save it in the stack (rsi is caller saved so no guarantee callee (here callee is srand(& also rand) and gen_rnd_num is caller) will preserve rsi)
 
-    # Call rand
+    # Call srand with the seed
+    movq    %rdi, %rdi                      # set the address of the usr_input_seed as the first (and only) argument for srand (passing by address)
+    call    srand
     call    rand                            # the result from rand is now stored at rax (so it is also in eax (same register smaller portion of it)
 
     # Modulo the result from rand (which is stored in rax) by N and add 1
@@ -74,18 +76,23 @@ gen_rnd_num:
     movq    %rsi, %rcx
     div     %rcx                            # rax = quotient, rdx = remainder. this is just how div works - not intuitive at all :(
     inc     %rdx                            # add 1 to match the examples in the assignment instructions
-    movq    %rdx, rnd_num_generated(%rip)   # Store remainder in rnd_num_generated
-    movq    rnd_num_generated(%rip), %rax
+    movq    %rdx, %rax                      # Store remainder in rax (return value)
 
-    popq    %rbp
+    movq    %rbp, %rsp                      # close gen_rnd_num activation frame
+    popq    %rbp                            # restore activation frame
     ret
 
 .global     main
 .type main, @function
 main:
-# boiler-plate code (copied from the examples in the exercise)
-pushq	%rbp                            # save the old frame pointer
-movq	%rsp,	%rbp	                # create the new frame pointer
+# boiler-plate code (copied from the examples in the exercise) to create stack frame (I think)
+pushq	%rbp                                # save the old frame pointer
+movq	%rsp,	%rbp	                    # create the new frame pointer
+
+# create space for local variables
+# I will need space for: seed (8 bytes), rnd_num (8 bytes), rounds (8 bytes - or maybe I should use 8 bytes? because the user will spend too much time if he will play that many (2^32) rounds), is_easy_mode (1 byte), cur_N (8 bytes), guess (8 bytes), is_double_or_nothing (1 byte)
+# so in total: 8 + 8 + 8(maybe4?) + 1 + 8 + 8 + 1 = 42 = 0b101010 (42 is the meaning of life so I should choose that and not 4 lol)
+subq    $48, %rsp                     # create space for local variables
 
 
 # Print the prompt asking for the seed
@@ -94,12 +101,12 @@ movq    $0, %rax
 call    printf
 
 # Scan the seed from the user
-movq    $scanf_fmt_seed, %rdi           # set the format as the first input for scanf
+movq    $fmt_string_digit, %rdi         # set the format as the first input for scanf (use 8 bytes (rdi and not e.g. edi) for scanf because man page shows signature that shows that first&second arguments are char* and in 64-bit architecture this is 8 bytes)
 leaq    usr_input_seed(%rip), %rsi      # set the address of usr_input_seed as the second input for scanf (i.e. scanf("%d", &usr_input_seed))
 call    scanf
 
 
-movl    usr_input_seed(%rip), %edi
+movq    usr_input_seed(%rip), %rdi
 movq    N(%rip), %rsi
 call    gen_rnd_num
 movq    %rax, rnd_num_generated(%rip)
@@ -111,7 +118,7 @@ movq    $0, %rax
 call    printf
 
 # Scan the input from the user
-movq    $scanf_fmt_chr,         %rdi      # set the format as the first input for scanf
+movq    $fmt_string_chr,         %rdi      # set the format as the first input for scanf
 leaq    usr_input_yes_or_no(%rip), %rsi # TODO: check if leaw is good or just lea. set the address of usr_input_seed as the second input for scanf (i.e. scanf("%d", &usr_input_seed))
 movq    $0, %rax
 call    scanf
@@ -126,7 +133,7 @@ movq    $0, %rax
 call    printf
 
 # Scan guess from the user
-movq    $scanf_fmt_guess, %rdi
+movq    $fmt_string_digit, %rdi
 leaq    usr_input_guess(%rip), %rsi
 movq    $0, %rax
 call scanf
@@ -159,7 +166,7 @@ jz      round_finish
 # so if we got here, that must mean that ((guess != rnd_num) && (counter != 0))
 
 # Print wrong answer message
-movq    $incorrect, %rdi
+movq    $incorrect_msg, %rdi
 movq    $0, %rax
 call    printf
 
@@ -190,10 +197,10 @@ movq    $0, %rax
 call    printf
 jmp     ask_for_guess_loop
 below:
-movq    $under_estimate, %rdi
+movq    $under_estimate_msg, %rdi
 jmp     print
 above:
-movq    $over_estimate, %rdi
+movq    $over_estimate_msg, %rdi
 jmp     print
 
 
@@ -242,7 +249,7 @@ movq    $0, %rax
 call    printf
 
 # Scan the input from the user
-movq    $scanf_fmt_chr, %rdi            # set the format as the first input for scanf
+movq    $fmt_string_chr, %rdi            # set the format as the first input for scanf
 leaq    is_double_or_nothing(%rip), %rsi
 movq    $0, %rax
 call    scanf
@@ -252,7 +259,7 @@ cmpb    $'y', %al
 je      update_new_round
 
 # Print winning message
-movq    $correct, %rdi
+movq    $congratulation_msg, %rdi
 movq    rounds(%rip), %rsi
 movq    $0, %rax
 call    printf

@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-int gen_rnd_num(unsigned int seed, long N) {
+long gen_rnd_num(unsigned long seed, long N) {
     srand(seed);
     return (rand() % N) + 1; // In assembly, use div and inc
 }
