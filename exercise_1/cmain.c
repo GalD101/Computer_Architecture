@@ -26,9 +26,6 @@ int main() {
     // Save the seed to the variable seed
     scanf("%d", &seed);
 
-    // Call srand with the appropriate seed
-    srand(seed);
-
     // Use the function gen_rnd_num to create the seed and save the returned value in rndnum
     rnd_num = gen_rnd_num(seed, N);
     
