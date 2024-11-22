@@ -2,6 +2,9 @@
 .extern scanf
 .extern srand
 .extern  rand
+#BUG!!!!! WHEN STARTING A NEW ROUND (NORMAL MODE) USER GETS INFINITE TRIES (ONLY IF HE MADE THREE OR MORE MISTAKES IN THE ROUND BEFORE)!!
+#BUG!!!!! WHEN USER STARTS ANOTHER ROUND IN EASY MODE HE ONLY GETS <5 TRIES! (COUNTER IS NOT BEING RESET) HAPPENS ONLY ON SECOND ROUND
+#BUG!!!!! USER DOES NOT GET INCORRECT AND GAME OVER MESSAGE WHEN HE LOSES
 
 # TODO: save local variables in stack instead of .data
 # .data is for initialized global static
@@ -35,19 +38,6 @@ under_estimate_msg:     .string "Your guess was below the actual number ...\n"
 game_over_msg:	        .string "\nGame over, you lost :(. The correct answer was %u\n"
 double_or_nothing_msg:  .string "Double or nothing! Would you like to continue to another round? (y/n) "
 
-
-.section .data
-# TODO CHANGE THIS USE STACK INSTEAD!
-tries_left: .byte 0x05
-rounds:     .quad 0x01 # quad just to be safe
-# create memory for the user input
-usr_input_seed:         .long 0x00 # Let the seed be a long (matches int according to presentation 4 slide 34) because srand signature is srand(unsigned int seed);
-usr_input_yes_or_no:    .byte 0    # This can only take 'y' or 'n' so it should only be 1 byte
-usr_input_guess:        .quad 0x00 # The guess could get very big if we continue to more round (in fact the game becomes harder exponentially)
-rnd_num_generated:      .quad 0x00 # This can get very big when we go to hugher round
-is_double_or_nothing:   .byte 0    # This can only take 'y' or 'n' so it should only be 1 byte
-
-
 .section    .text
 
 .global gen_rnd_num
@@ -62,101 +52,107 @@ gen_rnd_num: # long gen_rnd_num(unsigned long seed, long N)
     # so in total I will need 8 + 8 = 16 bytes in the stack (activation frame) for gen_rnd_num
     # but I will immediately call srand with seed so I don't need to save it
     # that means I will only need 8 bytes in the stack
-    subq    $0x10, %rsp                      # move rsp to create spcae for local variable N
-    pushq   %rsi                            # save N (which is in rsi because it is the second argument). We will need this after the call to srand & rand so save it in the stack (rsi is caller saved so no guarantee callee (here callee is srand(& also rand) and gen_rnd_num is caller) will preserve rsi)
+    subq    $010, %rsp            # move rsp to create spcae for local variable N
+    pushq   %rsi                  # save N (which is in rsi because it is the second argument). We will need this after the call to srand & rand so save it in the stack (rsi is caller saved so no guarantee callee (here callee is srand(& also rand) and gen_rnd_num is caller) will preserve rsi)
 
     # Call srand with the seed
-    movq    %rdi, %rdi                      # set the address of the usr_input_seed as the first (and only) argument for srand (passing by address)
+    movq    %rdi, %rdi            # set the address of the usr_input_seed as the first (and only) argument for srand (passing by address)
     call    srand
-    call    rand                            # the result from rand is now stored at rax (so it is also in eax (same register smaller portion of it)
+    call    rand                  # the result from rand is now stored at rax (so it is also in eax (same register smaller portion of it)
 
     # Modulo the result from rand (which is stored in rax) by N and add 1
-    popq    %rsi                            # retrieve N
-    movq    $0, %rdx                        # clear rdx TODO: Check if this is necessary
+    popq    %rsi                  # retrieve N
+    movq    $0, %rdx              # clear rdx TODO: Check if this is necessary
     movq    %rsi, %rcx
-    div     %rcx                            # rax = quotient, rdx = remainder. this is just how div works - not intuitive at all :(
-    inc     %rdx                            # add 1 to match the examples in the assignment instructions
-    movq    %rdx, %rax                      # Store remainder in rax (return value)
+    div     %rcx                  # rax = quotient, rdx = remainder. this is just how div works - not intuitive at all :(
+    inc     %rdx                  # add 1 to match the examples in the assignment instructions
+    movq    %rdx, %rax            # Store remainder in rax (return value)
 
-    movq    %rbp, %rsp                      # close gen_rnd_num activation frame
-    popq    %rbp                            # restore activation frame
+    movq    %rbp, %rsp            # close gen_rnd_num activation frame
+    popq    %rbp                  # restore activation frame
     ret
 
 .global     main
 .type main, @function
 main:
 # boiler-plate code (copied from the examples in the exercise) to create stack frame (I think)
-pushq	%rbp                                # save the old frame pointer
-movq	%rsp,	%rbp	                    # create the new frame pointer
+pushq	%rbp                      # save the old frame pointer
+movq	%rsp,	%rbp	          # create the new frame pointer
 
 # create space for local variables
-# I will need space for: seed (8 bytes), rnd_num (8 bytes), rounds (8 bytes - or maybe I should use 8 bytes? because the user will spend too much time if he will play that many (2^32) rounds), is_easy_mode (1 byte), cur_N (8 bytes), guess (8 bytes), is_double_or_nothing (1 byte)
+# I will need space for: seed (8 bytes), rnd_num (8 bytes), rounds (8 bytes - or maybe I should use 4 bytes? because the user will spend too much time if he will play that many (2^32) rounds), is_easy_mode (1 byte), cur_N (8 bytes), guess (8 bytes), is_double_or_nothing (1 byte)
 # so in total: 8 + 8 + 8(maybe4?) + 1 + 8 + 8 + 1 = 42 = 0b101010 (42 is the meaning of life so I should choose that and not 4 lol)
-subq    $48, %rsp                     # create space for local variables
+# apperantly main's stack fram has to be a multiple of 16 anyways, so the closest multiple of 16 is 48.
+subq    $48, %rsp                 # create space for local variables
+
+# initialize variable: (this is an optimal ordering (I think) - but it doesn't matter since main's stack fram has to be a multiple of 16 anyways...)
+# I could have also used push but then it would be hard to know where certain variables reside (it depends on the sequence we pushed)
+movq $0, -48(%rbp)                # Initialize seed to 0
+movq $0, -40(%rbp)                # Initialize rnd_num to 0
+# Initialize cur_N to N
+movq N(%rip), %rax                # Load N (from .rodata) into %rax
+movq %rax, -32(%rbp)              # Store cur_N
+movq $0, -24(%rbp)                # Initialize guess to 0
+movq $1, -16(%rbp)                # Initialize rounds to 1
+# Initialize tries_left to M
+movb M(%rip), %al                 # Load M (from .rodata) into %al
+movb %al, -8(%rbp)                # Store M in tries_left
+movb $'n', -7(%rbp)               # Initialize is_easy_mode to 'n'
+movb $'n', -6(%rbp)               # Initialize is_double_or_nothing to 'n'
 
 
 # Print the prompt asking for the seed
 movq    $usr_cnfg_seed_prmpt, %rdi
-movq    $0, %rax
+xorb    %al, %al
 call    printf
 
 # Scan the seed from the user
-movq    $fmt_string_digit, %rdi         # set the format as the first input for scanf (use 8 bytes (rdi and not e.g. edi) for scanf because man page shows signature that shows that first&second arguments are char* and in 64-bit architecture this is 8 bytes)
-leaq    usr_input_seed(%rip), %rsi      # set the address of usr_input_seed as the second input for scanf (i.e. scanf("%d", &usr_input_seed))
+movq    $fmt_string_digit, %rdi   # set the format as the first input for scanf (use 8 bytes (rdi and not e.g. edi) for scanf because man page shows signature that shows that first&second arguments are char* and in 64-bit architecture this is 8 bytes)
+leaq    -48(%rbp), %rsi           # set the address of the "first" variable in the stack (seed) as the second input for scanf (i.e. scanf("%d", &seed))
 call    scanf
 
-
-movq    usr_input_seed(%rip), %rdi
-movq    N(%rip), %rsi
+# Call gen_rnd_num with seed and N
+movq    -48(%rbp), %rdi           # first parameter (seed) goes to rdi
+movq    -32(%rbp), %rsi           # second parameter (N) goes to rsi
 call    gen_rnd_num
-movq    %rax, rnd_num_generated(%rip)
-
+movq    %rax, -40(%rbp)           # save the return value in rnd_num. return is at rax -> rnd_num = get_rnd_num(seed, N);
 
 # Print easy mode prompt
 movq    $usr_easy_mode_prmpt, %rdi
-movq    $0, %rax
+xorb    %al, %al                  # We must 0 only the left most byte of rax. see: https://stackoverflow.com/questions/6212665/why-is-eax-zeroed-before-a-call-to-printf
 call    printf
 
 # Scan the input from the user
-movq    $fmt_string_chr,         %rdi      # set the format as the first input for scanf
-leaq    usr_input_yes_or_no(%rip), %rsi # TODO: check if leaw is good or just lea. set the address of usr_input_seed as the second input for scanf (i.e. scanf("%d", &usr_input_seed))
-movq    $0, %rax
+movq    $fmt_string_chr, %rdi           # set the format as the first input for scanf
+leaq    -7(%rbp), %rsi                  # I think since we are copying an address, an address in a 64-but architecture is always 8 bit regardless of the value it holds. Thus we use quad (I want to copy the full address and not a part of it, that is why I copy to rsi and not esi). man page of scanf says the 2nd argument is const char* so it is 8 bytes.
+xorb    %al, %al
 call    scanf
 
-movb    M(%rip), %cl                         # ECX is for counter (according to lecture 4 slide 9) so I will use only the last 8 bits of it (internet says it is cl) The counter will be initialized to M. zbl will make the rest of the register filled with 0's
-movb    %cl, tries_left(%rip)
 ask_for_guess_loop:
 
 # Print prompt asking for guess
 movq    $usr_guess_prmpt, %rdi
-movq    $0, %rax
+xorb    %al, %al
 call    printf
 
 # Scan guess from the user
 movq    $fmt_string_digit, %rdi
-leaq    usr_input_guess(%rip), %rsi
-movq    $0, %rax
+leaq    -24(%rbp), %rsi
+xorb    %al, %al
 call scanf
 
-
-// # TESTING should print 5 
-// movq    $print_digit, %rdi       # Load format string "%ld\n"
-// mov     tries_left(%rip), %sil   # Load the random number
-// movq    $0, %rax                 # Clear %rax for variadic functions
-// call    printf                   # Print the number
-// ##################
-
-movb    tries_left(%rip), %cl
+# Decrement tries_left counter by 1
+movb    -8(%rbp) , %cl            # c in cl is counter (we could have used any other gp register but in the old days rcx was usually used as counter)
 decb    %cl
-movb    %cl, tries_left(%rip)
+movb    %cl, -8(%rbp)
 
 
 # The following is analogous to if (!((guess != rnd_num) && (counter != 0))) {goto round_finish;}
 # in the C program I wrote before jumping into Assembly
 
 # C: if (guess == rnd_num){goto round_finish;}
-movq    rnd_num_generated(%rip), %rax
-cmpq    %rax, usr_input_guess(%rip)
+movq    -40(%rbp), %rax
+cmpq    %rax, -24(%rbp)
 je      round_finish
 
 # C: if (counter == 0)
@@ -167,33 +163,26 @@ jz      round_finish
 
 # Print wrong answer message
 movq    $incorrect_msg, %rdi
-movq    $0, %rax
+xorb    %al, %al
 call    printf
 
-
-// # THIS IS JUST FOR DEBUGGING PURPOSES!
-// movq    $print_chr, %rdi
-// movq    usr_input_yes_or_no(%rip), %rsi
-// movq    $0, %rax
-// call    printf
-
-
-
-movzbq   usr_input_yes_or_no(%rip), %rax # Load the value into %rax
-cmpb     $'y', %al                      # Compare %al (lower 8 bits of rax) with 'y'
+movzbq   -7(%rbp), %rax           # TODO: Why use the entire rax and not just al? I think there is a reason
+cmpb     $'y', %al                # Compare %al (lower 8 bits of rax) with 'y'
 je       easy_mode
-cmpb     $'n', %al                      # Compare %al (lower 8 bits of rax) with 'n'
+cmpb     $'n', %al                # Compare %al (lower 8 bits of rax) with 'n'
 je       ask_for_guess_loop
 
 
 # Where should I place this???? In the end of the file??
 easy_mode:
-mov     rnd_num_generated(%rip), %rax
-cmp     usr_input_guess(%rip), %rax
+
+# Compare guess and rnd_num
+mov     -40(%rbp), %rax           
+cmp     -24(%rbp), %rax
 jg      below
-jmp     above
+jmp     above # (can also do jl)
 print:
-movq    $0, %rax
+xorb    %al, %al
 call    printf
 jmp     ask_for_guess_loop
 below:
@@ -203,41 +192,10 @@ above:
 movq    $over_estimate_msg, %rdi
 jmp     print
 
-
-
-// je easy_mode
-// cmp $'n', %rax
-// je not_easy_mode
-
-
-
-
-
-
-
-
-
-
-
-
-
-// # Testing - Delete this when finished
-// # Prepare to print rnd_num_generated
-// movq    $testingggg, %rdi        # Load format string "%ld\n"
-// movq    rnd_num_generated(%rip), %rsi  # Load the random number
-// movq    $0, %rax                 # Clear %rax for variadic functions
-// call    printf                   # Print the number
-// ##################
-
-
-
-
-
-
 round_finish:
-xor     %rax, %rax
-movq    usr_input_guess(%rip), %rax
-cmpq    rnd_num_generated(%rip), %rax
+xorq    %rax, %rax
+movq    -24(%rbp), %rax
+cmpq    -40(%rbp), %rax
 je      double_or_nothing
 jne     exit    # TEMP NEED TO FIX THIS! (maybe do print winning before exit and print incorrect before exit)
 
@@ -245,52 +203,52 @@ jne     exit    # TEMP NEED TO FIX THIS! (maybe do print winning before exit and
 double_or_nothing:
 # Print double or nothing prompt
 movq    $double_or_nothing_msg, %rdi
-movq    $0, %rax
+xorb    %al, %al
 call    printf
 
 # Scan the input from the user
 movq    $fmt_string_chr, %rdi            # set the format as the first input for scanf
-leaq    is_double_or_nothing(%rip), %rsi
-movq    $0, %rax
+leaq    -6(%rbp), %rsi
+xorb    %al, %al
 call    scanf
 
-movq    is_double_or_nothing(%rip), %rax
+movq    -6(%rbp), %rax
 cmpb    $'y', %al
 je      update_new_round
 
 # Print winning message
 movq    $congratulation_msg, %rdi
-movq    rounds(%rip), %rsi
-movq    $0, %rax
+movq    -16(%rbp), %rsi
+xorb    %al, %al
 call    printf
 jmp exit
 
 update_new_round:
 
 # Increment rounds counter
-movq    rounds(%rip), %rax
+movq    -16(%rbp), %rax
 incq    %rax
-movq    %rax, rounds(%rip)
+movq    %rax, -16(%rbp)
 
 # multiply seed by 2 using shifts
-movl    usr_input_seed(%rip), %eax
-shll    $1, %eax
-movl    %eax, usr_input_seed(%rip)
+movq    -48(%rbp), %rax
+shlq    $1, %rax
+movq    %rax, -48(%rbp)
 
 # multiply N by 2 using shifts
-movl    N(%rip), %eax
-shll    $1, %eax
-movl    %eax, N(%rip)
+movq    -32(%rbp), %rax
+shlq    $1, %rax
+movq    %rax, -32(%rbp) # SEGFAULT HERE
 
 # reset tries left counter
 movb    M(%rip), %al
-movb    tries_left(%rip), %al
+movb    -8(%rbp), %al
 
 # generate new random number
-movl    usr_input_seed(%rip), %edi
-movq    N(%rip), %rsi
+movq    -48(%rbp), %rdi
+movq    -32(%rbp), %rsi
 call    gen_rnd_num
-movq    %rax, rnd_num_generated(%rip)
+movq    %rax, -40(%rbp)
 
 # go to loop again to start a new round
 jmp ask_for_guess_loop
