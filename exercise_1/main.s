@@ -1,16 +1,7 @@
 .extern printf
 .extern scanf
 .extern srand
-.extern  rand
-#BUG!!!!! WHEN STARTING A NEW ROUND (NORMAL MODE) USER GETS INFINITE TRIES (ONLY IF HE MADE THREE OR MORE MISTAKES IN THE ROUND BEFORE)!! I think i fixed it
-#BUG!!!!! WHEN USER STARTS ANOTHER ROUND IN EASY MODE HE ONLY GETS <5 TRIES! (COUNTER IS NOT BEING RESET) HAPPENS ONLY ON SECOND ROUND I think I fixed that too
-#BUG!!!!! USER DOES NOT GET INCORRECT AND GAME OVER MESSAGE WHEN HE LOSES I think I fixed it too
-
-# TODO: save local variables in stack instead of .data
-# .data is for initialized global static
-# .rodata is for read only data and is for global static initialized constants
-# .bss is for block starting symbol and is for non initialized global static variables
-
+.extern rand
 
 .section		.rodata
 
@@ -44,8 +35,8 @@ double_or_nothing_msg:  .string "Double or nothing! Would you like to continue t
 .type gen_rnd_num, @function
 gen_rnd_num: # long gen_rnd_num(unsigned long seed, long N)
     # boiler-plate code (copied from the examples in the exercise) to create stack frame (I think)
-    pushq	%rbp                            # save the old frame pointer
-    movq	%rsp,	%rbp	                # create the new frame pointer
+    pushq	%rbp                  # save the old frame pointer
+    movq	%rsp,	%rbp	      # create the new frame pointer
 
     # use stack to create space for local variables
     # I will need one unsigned long which is 8 bytes in 64-bit architecture (parameter seed) and one long which is also 8 bytes in 64-bit architecture (parameter N)
@@ -76,30 +67,29 @@ gen_rnd_num: # long gen_rnd_num(unsigned long seed, long N)
 .type main, @function
 main:
     # boiler-plate code (copied from the examples in the exercise) to create stack frame (I think)
-    pushq	%rbp                      # save the old frame pointer
-    movq	%rsp,	%rbp	          # create the new frame pointer
+    pushq	%rbp                  # save the old frame pointer
+    movq	%rsp,	%rbp	      # create the new frame pointer
 
     # create space for local variables
     # I will need space for: seed (8 bytes), rnd_num (8 bytes), rounds (8 bytes - or maybe I should use 4 bytes? because the user will spend too much time if he will play that many (2^32) rounds), is_easy_mode (1 byte), cur_N (8 bytes), guess (8 bytes), is_double_or_nothing (1 byte)
     # so in total: 8 + 8 + 8(maybe4?) + 1 + 8 + 8 + 1 = 42 = 0b101010 (42 is the meaning of life so I should choose that and not 4 lol)
     # apperantly main's stack fram has to be a multiple of 16 anyways, so the closest multiple of 16 is 48.
-    subq    $48, %rsp                 # create space for local variables
+    subq    $48, %rsp             # create space for local variables
 
     # initialize variable: (this is an optimal ordering (I think) - but it doesn't matter since main's stack fram has to be a multiple of 16 anyways...)
     # I could have also used push but then it would be hard to know where certain variables reside (it depends on the sequence we pushed)
-    movq $0, -48(%rbp)                # Initialize seed to 0
-    movq $0, -40(%rbp)                # Initialize rnd_num to 0
+    movq $0, -48(%rbp)            # Initialize seed to 0
+    movq $0, -40(%rbp)            # Initialize rnd_num to 0
     # Initialize cur_N to N
-    movq N(%rip), %rax                # Load N (from .rodata) into %rax
-    movq %rax, -32(%rbp)              # Store cur_N
-    movq $0, -24(%rbp)                # Initialize guess to 0
-    movq $1, -16(%rbp)                # Initialize rounds to 1
+    movq N(%rip), %rax            # Load N (from .rodata) into %rax
+    movq %rax, -32(%rbp)          # Store cur_N
+    movq $0, -24(%rbp)            # Initialize guess to 0
+    movq $1, -16(%rbp)            # Initialize rounds to 1
     # Initialize tries_left to M
-    movb M(%rip), %al                 # Load M (from .rodata) into %al
-    movb %al, -8(%rbp)                # Store M in tries_left
-    movb $'n', -7(%rbp)               # Initialize is_easy_mode to 'n'
-    movb $'n', -6(%rbp)               # Initialize is_double_or_nothing to 'n'
-
+    movb M(%rip), %al             # Load M (from .rodata) into %al
+    movb %al, -8(%rbp)            # Store M in tries_left
+    movb $'n', -7(%rbp)           # Initialize is_easy_mode to 'n'
+    movb $'n', -6(%rbp)           # Initialize is_double_or_nothing to 'n'
 
     # Print the prompt asking for the seed
     movq    $usr_cnfg_seed_prmpt, %rdi
@@ -107,24 +97,24 @@ main:
     call    printf
 
     # Scan the seed from the user
-    movq    $fmt_string_digit, %rdi   # set the format as the first input for scanf (use 8 bytes (rdi and not e.g. edi) for scanf because man page shows signature that shows that first&second arguments are char* and in 64-bit architecture this is 8 bytes)
-    leaq    -48(%rbp), %rsi           # set the address of the "first" variable in the stack (seed) as the second input for scanf (i.e. scanf("%d", &seed))
+    movq    $fmt_string_digit, %rdi    # set the format as the first input for scanf (use 8 bytes (rdi and not e.g. edi) for scanf because man page shows signature that shows that first&second arguments are char* and in 64-bit architecture this is 8 bytes)
+    leaq    -48(%rbp), %rsi            # set the address of the "first" variable in the stack (seed) as the second input for scanf (i.e. scanf("%d", &seed))
     call    scanf
 
     # Call gen_rnd_num with seed and N
-    movq    -48(%rbp), %rdi           # first parameter (seed) goes to rdi
-    movq    -32(%rbp), %rsi           # second parameter (N) goes to rsi
+    movq    -48(%rbp), %rdi            # first parameter (seed) goes to rdi
+    movq    -32(%rbp), %rsi            # second parameter (N) goes to rsi
     call    gen_rnd_num
-    movq    %rax, -40(%rbp)           # save the return value in rnd_num. return is at rax -> rnd_num = get_rnd_num(seed, N);
+    movq    %rax, -40(%rbp)            # save the return value in rnd_num. return is at rax -> rnd_num = get_rnd_num(seed, N);
 
     # Print easy mode prompt
     movq    $usr_easy_mode_prmpt, %rdi
-    xorb    %al, %al                  # We must 0 only the left most byte of rax. see: https://stackoverflow.com/questions/6212665/why-is-eax-zeroed-before-a-call-to-printf
+    xorb    %al, %al                   # We must 0 only the left most byte of rax. see: https://stackoverflow.com/questions/6212665/why-is-eax-zeroed-before-a-call-to-printf
     call    printf
 
     # Scan the input from the user
-    movq    $fmt_string_chr, %rdi           # set the format as the first input for scanf
-    leaq    -7(%rbp), %rsi                  # I think since we are copying an address, an address in a 64-but architecture is always 8 bit regardless of the value it holds. Thus we use quad (I want to copy the full address and not a part of it, that is why I copy to rsi and not esi). man page of scanf says the 2nd argument is const char* so it is 8 bytes.
+    movq    $fmt_string_chr, %rdi      # set the format as the first input for scanf
+    leaq    -7(%rbp), %rsi             # I think since we are copying an address, an address in a 64-but architecture is always 8 bit regardless of the value it holds. Thus we use quad (I want to copy the full address and not a part of it, that is why I copy to rsi and not esi). man page of scanf says the 2nd argument is const char* so it is 8 bytes.
     xorb    %al, %al
     call    scanf
 
@@ -142,7 +132,7 @@ main:
     call scanf
 
     # Decrement tries_left counter by 1
-    movb    -8(%rbp) , %cl            # c in cl is counter (we could have used any other gp register but in the old days rcx was usually used as counter)
+    movb    -8(%rbp) , %cl             # c in cl is counter (we could have used any other gp register but in the old days rcx was usually used as counter)
     decb    %cl
     movb    %cl, -8(%rbp)
 
@@ -164,17 +154,15 @@ main:
 
     # C: if (counter == 0)
     movb    -8(%rbp) , %cl
-    testb   %cl, %cl                # this will "perform a 'mental' AND" so we will get ZF=1 iff %cl is 0 
+    testb   %cl, %cl                   # this will "perform a 'mental' AND" so we will get ZF=1 iff %cl is 0 
     jz      game_over #lose
 
-    movzbq   -7(%rbp), %rax           # TODO: Why use the entire rax and not just al? I think there is a reason
-    cmpb     $'y', %al                # Compare %al (lower 8 bits of rax) with 'y'
+    movb     -7(%rbp), %al
+    cmpb     $'y', %al                 # Compare %al (lower 8 bits of rax) with 'y'
     je       easy_mode
-    cmpb     $'n', %al                # Compare %al (lower 8 bits of rax) with 'n'
+    cmpb     $'n', %al                 # Compare %al (lower 8 bits of rax) with 'n'
     je       ask_for_guess_loop
 
-
-    # Where should I place this???? In the end of the file??
     easy_mode:
 
     # Compare guess and rnd_num
@@ -200,7 +188,7 @@ main:
     call    printf
 
     # Scan the input from the user
-    movq    $fmt_string_chr, %rdi            # set the format as the first input for scanf
+    movq    $fmt_string_chr, %rdi      # set the format as the first input for scanf
     leaq    -6(%rbp), %rsi
     xorb    %al, %al
     call    scanf
@@ -218,7 +206,7 @@ main:
 
     update_new_round:
 
-    # reset tries left counter BUG HERE IT DOESN'T WORK
+    # reset tries left counter
     movb    M(%rip), %al
     movb    %al, -8(%rbp)
 
@@ -235,11 +223,11 @@ main:
     # multiply N by 2 using shifts
     movq    -32(%rbp), %rax
     shlq    $1, %rax
-    movq    %rax, -32(%rbp) # SEGFAULT HERE
+    movq    %rax, -32(%rbp)
 
     # reset tries left counter
     movb    M(%rip), %al
-    movb    -8(%rbp), %al
+    movb    %al, -8(%rbp) # THIS DOES NOT CAUSE A BUG BUT CHECK IT BECAUSE IT WAS PROBLAMETIC BEFORE
 
     # generate new random number
     movq    -48(%rbp), %rdi
@@ -249,7 +237,6 @@ main:
 
     # go to loop again to start a new round
     jmp ask_for_guess_loop
-
 
     game_over:
 
