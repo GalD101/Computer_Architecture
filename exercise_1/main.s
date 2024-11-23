@@ -43,24 +43,24 @@ gen_rnd_num: # long gen_rnd_num(unsigned long seed, long N)
     # so in total I will need 8 + 8 = 16 bytes in the stack (activation frame) for gen_rnd_num
     # but I will immediately call srand with seed so I don't need to save it
     # that means I will only need 8 bytes in the stack
-    # but again, even though I don't have to, it is better to align the stack to 16 bytes (for performance reasons)
-    subq    $0x10, %rsp            # move rsp to create spcae for local variable N
+    # but even though I don't have to, it is better to align the stack to 16 bytes (for performance reasons)
+    subq    $0x10, %rsp           # move rsp to create spcae for local variable N
     pushq   %rsi                  # save N (which is in rsi because it is the second argument). We will need this after the call to srand & rand so save it in the stack (rsi is caller saved so no guarantee callee (here callee is srand(& also rand) and gen_rnd_num is caller) will preserve rsi)
 
     # Call srand with the seed
     movq    %rdi, %rdi            # set the address of the usr_input_seed as the first (and only) argument for srand (passing by address)
-    xorb     %al, %al
+    xorb    %al, %al              # We should 0 only the left most byte of rax. see: https://stackoverflow.com/questions/6212665/why-is-eax-zeroed-before-a-call-to-printf
     call    srand
-    xorb     %al, %al
-    call    rand                  # the result from rand is now stored at rax (so it is also in eax (same register smaller portion of it)
+    xorb    %al, %al
+    call    rand                  # the result from rand is now stored at rax (so it is also in eax (same register smaller portion of it))
 
     # Modulo the result from rand (which is stored in rax) by N and add 1
     popq    %rsi                  # retrieve N
-    movq    $0, %rdx              # clear rdx TODO: Check if this is necessary
-    movq    %rsi, %rcx
-    div     %rcx                  # rax = quotient, rdx = remainder. this is just how div works - not intuitive at all :(
+    xorq    %rdx, %rdx            # clear rdx (this is needed because div uses rdx as well)
+    movq    %rsi, %rcx            # move N to rcx (div uses rcx as well)
+    div     %rcx                  # rax = quotient, rdx = remainder. this is just how div works
     inc     %rdx                  # add 1 to match the examples in the assignment instructions
-    movq    %rdx, %rax            # Store remainder in rax (return value)
+    movq    %rdx, %rax            # store remainder in rax (return value)
 
     movq    %rbp, %rsp            # close gen_rnd_num activation frame
     popq    %rbp                  # restore activation frame
@@ -74,12 +74,13 @@ main:
     movq	%rsp,	%rbp	      # create the new frame pointer
 
     # create space for local variables
-    # I will need space for: seed (8 bytes), rnd_num (8 bytes), rounds (8 bytes - or maybe I should use 4 bytes? because the user will spend too much time if he will play that many (2^32) rounds), is_easy_mode (1 byte), cur_N (8 bytes), guess (8 bytes), is_double_or_nothing (1 byte)
-    # so in total: 8 + 8 + 8(maybe4?) + 1 + 8 + 8 + 1 = 42 = 0b101010 (42 is the meaning of life so I should choose that and not 4 lol)
-    # apperantly main's stack fram has to be a multiple of 16 anyways, so the closest multiple of 16 is 48.
+    # I will need space for: seed (8 bytes), rnd_num (8 bytes), rounds (8 bytes - or maybe I should use 4 bytes?
+    # because the user will spend too much time if he will play that many ~(2^32) rounds), is_easy_mode (1 byte), cur_N (8 bytes), guess (8 bytes), is_double_or_nothing (1 byte)
+    # so in total: 8 + 8 + 8(maybe just 4?) + 1 + 8 + 8 + 1 = 42 (38) = 0b101010 (42 is the meaning of life so I should choose 8 for rounds and not 4 lol)
+    # apperantly main's stack fram has to be a multiple of 16 anyways, so the closest multiple of 16 of 42/38 is 48.
     subq    $48, %rsp             # create space for local variables
 
-    # initialize variable: (this is an optimal ordering (I think) - but it doesn't matter since main's stack fram has to be a multiple of 16 anyways...)
+    # initialize variable:
     # I could have also used push but then it would be hard to know where certain variables reside (it depends on the sequence we pushed)
     movq $0, -48(%rbp)            # Initialize seed to 0
     movq $0, -40(%rbp)            # Initialize rnd_num to 0
@@ -134,24 +135,19 @@ main:
     movq    $fmt_string_digit, %rdi
     leaq    -24(%rbp), %rsi
     xorb    %al, %al
-    call scanf
+    call    scanf
 
     # Decrement tries_left counter by 1
     movb    -8(%rbp) , %cl             # c in cl is counter (we could have used any other gp register but in the old days rcx was usually used as counter)
     decb    %cl
     movb    %cl, -8(%rbp)
 
-
-    # The following is analogous to if (!((guess != rnd_num) && (counter != 0))) {goto round_finish;}
-    # in the C program I wrote before jumping into Assembly
-
-    # C: if (guess == rnd_num){goto round_finish;}
+    # C: if (guess == rnd_num){goto double_or_nothing;}
     movq    -40(%rbp), %rax
     cmpq    %rax, -24(%rbp)
-    je      double_or_nothing #win
+    je      double_or_nothing # win
 
-    # so if we got here, that must mean that ((guess != rnd_num) && (counter != 0))
-
+    # C: else{printf("Incorrect. ");}
     # Print wrong answer message
     movq    $incorrect_msg, %rdi
     xorb    %al, %al
@@ -159,8 +155,8 @@ main:
 
     # C: if (counter == 0)
     movb    -8(%rbp) , %cl
-    testb   %cl, %cl                   # this will "perform a 'mental' AND" so we will get ZF=1 iff %cl is 0 
-    jz      game_over #lose
+    testb   %cl, %cl                   # this will "perform a 'mental' AND" so we will get ZF=1 iff %cl is 0
+    jz      game_over # lose
 
     movb     -7(%rbp), %al
     cmpb     $'y', %al                 # Compare %al (lower 8 bits of rax) with 'y'
@@ -171,10 +167,10 @@ main:
     easy_mode:
 
     # Compare guess and rnd_num
-    mov     -40(%rbp), %rax           
-    cmp     -24(%rbp), %rax
-    ja      below
-    jmp     above # (can also do jb)
+    mov     -24(%rbp), %rax           
+    cmp     -40(%rbp), %rax
+    jb      below
+    jmp     above # (can also do ja)
     print:
     xorb    %al, %al
     call    printf
@@ -198,6 +194,7 @@ main:
     xorb    %al, %al
     call    scanf
 
+    # C: if (is_double_or_nothing == 'y'){goto update_new_round;}
     movq    -6(%rbp), %rax
     cmpb    $'y', %al
     je      update_new_round
@@ -232,7 +229,7 @@ main:
 
     # reset tries left counter
     movb    M(%rip), %al
-    movb    %al, -8(%rbp) # THIS DOES NOT CAUSE A BUG BUT CHECK IT BECAUSE IT WAS PROBLAMETIC BEFORE
+    movb    %al, -8(%rbp)
 
     # generate new random number
     movq    -48(%rbp), %rdi
