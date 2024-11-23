@@ -80,7 +80,7 @@ main:
     # Align stack frame to 16 bytes, using 48 bytes for local variables.
     subq    $48, %rsp             # create space for local variables
 
-    # initialize variable:
+    # initialize variables:
     # I could have also used push but then it would be hard to know where certain variables reside (it depends on the sequence we pushed)
     movq $0, -48(%rbp)            # Initialize seed to 0
     movq $0, -40(%rbp)            # Initialize rnd_num to 0
