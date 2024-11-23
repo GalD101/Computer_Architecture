@@ -31,7 +31,7 @@ double_or_nothing_msg:  .string "Double or nothing! Would you like to continue t
 
 .section    .text
 
-.global gen_rnd_num
+.globl gen_rnd_num
 .type gen_rnd_num, @function
 gen_rnd_num: # long gen_rnd_num(unsigned long seed, long N)
     # boiler-plate code (copied from the examples in the exercise) to create stack frame (I think)
@@ -43,12 +43,15 @@ gen_rnd_num: # long gen_rnd_num(unsigned long seed, long N)
     # so in total I will need 8 + 8 = 16 bytes in the stack (activation frame) for gen_rnd_num
     # but I will immediately call srand with seed so I don't need to save it
     # that means I will only need 8 bytes in the stack
-    subq    $010, %rsp            # move rsp to create spcae for local variable N
+    # but again, even though I don't have to, it is better to align the stack to 16 bytes (for performance reasons)
+    subq    $0x10, %rsp            # move rsp to create spcae for local variable N
     pushq   %rsi                  # save N (which is in rsi because it is the second argument). We will need this after the call to srand & rand so save it in the stack (rsi is caller saved so no guarantee callee (here callee is srand(& also rand) and gen_rnd_num is caller) will preserve rsi)
 
     # Call srand with the seed
     movq    %rdi, %rdi            # set the address of the usr_input_seed as the first (and only) argument for srand (passing by address)
+    xorb     %al, %al
     call    srand
+    xorb     %al, %al
     call    rand                  # the result from rand is now stored at rax (so it is also in eax (same register smaller portion of it)
 
     # Modulo the result from rand (which is stored in rax) by N and add 1
@@ -99,17 +102,19 @@ main:
     # Scan the seed from the user
     movq    $fmt_string_digit, %rdi    # set the format as the first input for scanf (use 8 bytes (rdi and not e.g. edi) for scanf because man page shows signature that shows that first&second arguments are char* and in 64-bit architecture this is 8 bytes)
     leaq    -48(%rbp), %rsi            # set the address of the "first" variable in the stack (seed) as the second input for scanf (i.e. scanf("%d", &seed))
+    xorb    %al, %al
     call    scanf
 
     # Call gen_rnd_num with seed and N
     movq    -48(%rbp), %rdi            # first parameter (seed) goes to rdi
     movq    -32(%rbp), %rsi            # second parameter (N) goes to rsi
+    xorb    %al, %al
     call    gen_rnd_num
     movq    %rax, -40(%rbp)            # save the return value in rnd_num. return is at rax -> rnd_num = get_rnd_num(seed, N);
 
     # Print easy mode prompt
     movq    $usr_easy_mode_prmpt, %rdi
-    xorb    %al, %al                   # We must 0 only the left most byte of rax. see: https://stackoverflow.com/questions/6212665/why-is-eax-zeroed-before-a-call-to-printf
+    xorb    %al, %al
     call    printf
 
     # Scan the input from the user
@@ -168,8 +173,8 @@ main:
     # Compare guess and rnd_num
     mov     -40(%rbp), %rax           
     cmp     -24(%rbp), %rax
-    jg      below
-    jmp     above # (can also do jl)
+    ja      below
+    jmp     above # (can also do jb)
     print:
     xorb    %al, %al
     call    printf
@@ -217,12 +222,12 @@ main:
 
     # multiply seed by 2 using shifts
     movq    -48(%rbp), %rax
-    shlq    $1, %rax
+    shlq    %rax
     movq    %rax, -48(%rbp)
 
     # multiply N by 2 using shifts
     movq    -32(%rbp), %rax
-    shlq    $1, %rax
+    shlq    %rax
     movq    %rax, -32(%rbp)
 
     # reset tries left counter
@@ -232,6 +237,7 @@ main:
     # generate new random number
     movq    -48(%rbp), %rdi
     movq    -32(%rbp), %rsi
+    xorb    %al, %al
     call    gen_rnd_num
     movq    %rax, -40(%rbp)
 
