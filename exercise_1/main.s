@@ -77,14 +77,14 @@ main:
     # I will need space for: seed (8 bytes), rnd_num (8 bytes), rounds (8 bytes - or maybe I should use 4 bytes?
     # because the user will spend too much time if he will play that many ~(2^32) rounds), is_easy_mode (1 byte), cur_N (8 bytes), guess (8 bytes), is_double_or_nothing (1 byte)
     # so in total: 8 + 8 + 8(maybe just 4?) + 1 + 8 + 8 + 1 = 42 (38) = 0b101010 (42 is the meaning of life so I should choose 8 for rounds and not 4 lol)
-    # apperantly main's stack fram has to be a multiple of 16 anyways, so the closest multiple of 16 of 42/38 is 48.
+    # Align stack frame to 16 bytes, using 48 bytes for local variables.
     subq    $48, %rsp             # create space for local variables
 
     # initialize variable:
     # I could have also used push but then it would be hard to know where certain variables reside (it depends on the sequence we pushed)
     movq $0, -48(%rbp)            # Initialize seed to 0
     movq $0, -40(%rbp)            # Initialize rnd_num to 0
-    # Initialize cur_N to N
+    # Initialize cur_N to the value of N
     movq N(%rip), %rax            # Load N (from .rodata) into %rax
     movq %rax, -32(%rbp)          # Store cur_N
     movq $0, -24(%rbp)            # Initialize guess to 0
@@ -159,16 +159,16 @@ main:
     jz      game_over # lose
 
     movb     -7(%rbp), %al
-    cmpb     $'y', %al                 # Compare %al (lower 8 bits of rax) with 'y'
+    cmpb     $'y', %al
     je       easy_mode
-    cmpb     $'n', %al                 # Compare %al (lower 8 bits of rax) with 'n'
+    cmpb     $'n', %al
     je       ask_for_guess_loop
 
     easy_mode:
 
     # Compare guess and rnd_num
-    mov     -24(%rbp), %rax           
-    cmp     -40(%rbp), %rax
+    movq    -24(%rbp), %rax           
+    cmpq    -40(%rbp), %rax
     jb      below
     jmp     above # (can also do ja)
     print:
