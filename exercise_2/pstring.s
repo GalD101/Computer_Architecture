@@ -1,29 +1,29 @@
 .section .text
 
-// .global pstrlen
-// .type pstrlen, @function
-// pstrlen:
-//     # boiler-plate code (copied from the examples in the exercise) to create stack frame (I think)
-//     pushq	%rbp                    # save the old frame pointer
-//     movq	%rsp,	%rbp	        # create the new frame pointer
+.global pstrlen
+.type pstrlen, @function
+pstrlen:
+    # boiler-plate code (copied from the examples in the exercise) to create stack frame (I think)
+    pushq	%rbp                    # save the old frame pointer
+    movq	%rsp,	%rbp	        # create the new frame pointer
 
-//     xorb    %cl, %cl                # clear %cl, which we will use as a counter.
+    xorb    %cl, %cl                # clear %cl, which we will use as a counter.
     
-//     pstrlen_loop:
-//         # check every character in sequence
-//         # ;if null byte - quit the loop, otherwise - increment counter by 1
-//         cmpb    (%rdi, %rcx, 1), $0 # %rdi + 1*%cl
-//         je      end_loop
-//         incb    %cl
-//         jmp pstrlen_loop
+    pstrlen_loop:
+        # check every character in sequence
+        # ;if null byte - quit the loop, otherwise - increment counter by 1
+        cmpb    $0, 1(%rdi, %rcx, 1) # %rdi + 1*%cl
+        je      end_loop
+        incb    %cl
+        jmp pstrlen_loop
 
-//     end_loop:
-//         movb %cl, %al               # TODO: Check this, I need to return a byte long answer (char) of the length
+    end_loop:
+        movb %cl, %al               # TODO: Check this, I need to return a byte long answer (char) of the length
 
 
-//     movq    %rbp, %rsp              # close pstrlen activation frame
-//     popq    %rbp                    # restore activation frame
-//     ret
+    movq    %rbp, %rsp              # close pstrlen activation frame
+    popq    %rbp                    # restore activation frame
+    ret
 
 .global swapCase
 .type swapCase, @function
