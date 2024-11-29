@@ -84,3 +84,11 @@ swapCase:
         ret
 
 
+.global pstrijcpy
+.type pstrijcpy, @function
+pstrijcpy:
+    # boiler-plate code (copied from the examples in the exercise) to create stack frame (I think)
+    pushq	%rbp                    # save the old frame pointer
+    movq	%rsp,	%rbp	        # create the new frame pointer
+
+    # %rdi is dst, %rsi is src, %rdx is i, %rcx is j
