@@ -1,0 +1,21 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build1",
+            "type": "shell",
+            "command": "gcc",
+            "args": [
+                "-g",
+                "testing.o",
+                "pstring.o",
+                "-o",
+                "test_swapcase"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}
