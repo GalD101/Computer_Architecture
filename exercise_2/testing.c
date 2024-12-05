@@ -11,6 +11,7 @@ extern void swapCase(Pstring* pstr);
 extern char pstrlen(Pstring* pstr);
 extern Pstring* pstrijcpy(Pstring* dst, Pstring* src, char i, char j);
 extern Pstring* pstrcat(Pstring* dst, Pstring* src);
+extern void run_func(int choice, Pstring *pstr1, Pstring *pstr2);
 
 
 int main() {
@@ -27,7 +28,7 @@ int main() {
     printf("Original string: %s\n", pstr.str);
     printf("Original string2: %s\n", pstr2.str);
 
-
+    run_func(30, &pstr, &pstr2);
     // Call the pstrijcpy function
     // pstr2 = *(pstrijcpy(&pstr, &pstr2, 5, 9));
     pstrijcpy(&pstr, &pstr2, 7, 11);
