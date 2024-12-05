@@ -10,7 +10,7 @@ char pstrlen(Pstring* pstr);
 
 Pstring* swapCase(Pstring* pstr);
 
-Pstring* pstrijcpy(Pstring* dst, Pstring* src, char i, char j);
+Pstring* pstrijcpy(Pstring* dst, Pstring* src, unsigned char i, unsigned char j);
 
 Pstring* pstrcat(Pstring* dst, Pstring* src);
 
