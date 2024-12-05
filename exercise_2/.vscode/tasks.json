@@ -7,11 +7,20 @@
             "command": "gcc",
             "args": [
                 "-g",
+                "-no-pie",
                 "testing.o",
                 "pstring.o",
+                "func_select.o",
                 "-o",
-                "test_swapcase"
+                "test_swapcase",
             ],
+            // "args": [
+            //     "-g",
+            //     "testing.o",
+            //     "pstring.o",
+            //     "-o",
+            //     "test_swapcase"
+            // ],
             "group": {
                 "kind": "build",
                 "isDefault": true
