@@ -1,3 +1,5 @@
+# TODOOOOO !!!!!!!!!!!!!!!!!!
+# USE THE STACK INSTEAD OF REGISTERS LIKE R8 AND R9 OR MAYBE NOT????
 .extern printf
 
 // .section .rodata
@@ -21,12 +23,13 @@ pstrlen:
         # check every character in sequence
         # ;if null byte - quit the loop, otherwise - increment counter by 1
         cmpb    $0, 1(%rdi, %rcx, 1) # %rdi + 1*%cl
-        je      end_loop
+        je      end_pstrlen_loop
         incb    %cl
-        jmp pstrlen_loop
+        jmp     pstrlen_loop
 
-    end_loop:
-        movb %cl, %al               # TODO: Check this, I need to return a byte long answer (char) of the length
+    end_pstrlen_loop:
+        xorq    %rax, %rax             # clear %rax
+        movb    %cl, %al               # set %al to the counter value
 
 
     movq    %rbp, %rsp              # close pstrlen activation frame
@@ -105,7 +108,7 @@ pstrijcpy:
 
     # check that i <= j <==> !(i > j)
     cmpb    %cl, %dl
-    ja      invalid_input
+    ja      invalid_input_pstrijcpy
 
     # save len in caller saved registers:
     movzbw    (%rdi), %r10w           # load length of dst into the lower part of %r10
@@ -117,7 +120,7 @@ pstrijcpy:
     cmpb    %r10b, %r11b
     cmovb   %r11w, %r10w             # suppose dst(src) is shorter, if it is not shorter then src(dst) must be shorter.
     cmpb    %r10b, %cl               # check that j < min(len of src, len of dst) <==> !(j >= min(len of src, len of dst))
-    jae     invalid_input
+    jae     invalid_input_pstrijcpy
 
     # calculate the i'th letter address in src
     leaq    1(%rsi, %rdx, 1), %r8
@@ -126,7 +129,7 @@ pstrijcpy:
     
     # calculate the i'th letter address in dst
     leaq    1(%rdi, %rdx, 1), %r10
-    loop_copy:
+    loop_copy_pstrijcpy:
         // This code snippet copies a byte from the memory location pointed to by %r8 to the memory location pointed to by %r10.
         // It then increments the byte pointers %r8 and %r10.
         // The loop continues until the value in %r8 is greater than the value in %r9.
@@ -135,8 +138,8 @@ pstrijcpy:
         incb    %r8b                # move the current i in dst by 1
         incb    %r10b               # move the current i in src by 1
         cmpq    %r9, %r8            # if the address of the cur_i letter in src equals the address of the j'th letter in src
-        jbe     loop_copy
-        # What's next?
+        jbe     loop_copy_pstrijcpy
+        # What's next? IDK????!!!!!
         #1 copy the val at r10b to cur_i letter in dst
         #2 increase i by 1
         #3 calculate the next letter in src and save in r10b
@@ -144,16 +147,75 @@ pstrijcpy:
 
 
 
-    epilogue:
+    epilogue_pstrijcpy:
         movq    %rdi, %rax          # return the pointer to the string
         movq    %rbp, %rsp          # close pstrijcpy activation frame
         popq    %rbp                # restore activation frame
         ret
 
-    invalid_input:
+    invalid_input_pstrijcpy:
     # TODO
         movq    $'L', %rdi
         xor     %rax, %rax
         call    printf
         xorq    %rax, %rax
-        jmp epilogue
+        jmp epilogue_pstrijcpy
+
+
+
+.global pstrcat
+.type pstrcat, @function
+pstrcat:
+    # TODO MAKE SURE THAT YOU DON'T MODIFY ANYTHING IN SRC!!!!
+    # REMEMBER TO UPDATE THE LEN OF DST!!!!
+    # boiler-plate code (copied from the examples in the exercise) to create stack frame (I think)
+    pushq	%rbp                    # save the old frame pointer
+    movq	%rsp,	%rbp	        # create the new frame pointer
+
+    # %rdi is dst, %rsi is src
+    # dst + src -> dst
+
+    # save len in caller saved registers:
+    movzbw    (%rdi), %r10w           # load length of dst into the lower part of %r10
+    movzbw    (%rsi), %r11w           # load length of src into the lower part of %r11
+
+    # calculate the length of the new string
+    addb    %r10b, %r11b              # %r11 = %r11 + %r10
+
+    # check if the new string is too long
+    cmpb    $254, %r11b               # check if %r11 > 254. %r11 is the new len of dst and will be updated after copying
+    ja      invalid_input_pstrcat     # above because len is unsigned
+
+    xorq    %rcx, %rcx                # set %rcx to 0, we will use it as a counter.
+    movzbw  (%rsi), %r11w             # load length of src into the lower part of %r11 (again)
+
+    # calculate the address of the end of the dst string
+    leaq    1(%rdi, %r10, 1), %r10
+
+    loop_copy_pstrcat:
+        # copy the current character of src to the end of dst (r10)
+        movb    1(%rsi, %rcx, 1), %al         # load the byte at the address in %rsi into %al
+        movb    %al, (%r10, %rcx, 1)          # store the byte in %al at the address in %r10
+        incb    %cl
+        cmpb    %r11b, %cl                    # check if we finished copyings all the characters in src
+        jnz     loop_copy_pstrcat
+
+    
+    # update the length of the new string TODO
+    addb    (%rdi), %cl
+    movb    %cl, (%rdi)
+
+    epilogue_pstrcat:
+        movq    %rdi, %rax          # return the pointer to the string
+        movq    %rbp, %rsp          # close pstrcat activation frame
+        popq    %rbp                # restore activation frame
+        ret
+
+
+    invalid_input_pstrcat:
+    # TODO
+        movq    $'L', %rdi
+        xor     %rax, %rax
+        call    printf
+        xorq    %rax, %rax
+        jmp epilogue_pstrcat
