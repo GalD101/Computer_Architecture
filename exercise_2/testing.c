@@ -10,6 +10,7 @@ typedef struct {
 extern void swapCase(Pstring* pstr);
 extern char pstrlen(Pstring* pstr);
 extern Pstring* pstrijcpy(Pstring* dst, Pstring* src, char i, char j);
+extern Pstring* pstrcat(Pstring* dst, Pstring* src);
 
 
 int main() {
@@ -34,6 +35,8 @@ int main() {
     printf("Length of string: %d\n", pstrlen(&pstr));
     // Call the swapCase function
     swapCase(&pstr);
+    swapCase(&pstr2);
+    pstrcat(&pstr, &pstr2);
 
     // Print the modified string
     printf("Modified string: %s\n", pstr.str);
