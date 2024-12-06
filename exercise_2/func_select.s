@@ -5,6 +5,8 @@ choise_31_txt:        .string "first pstring length: %d, second pstring length: 
 choise_33_34_37_txt:  .string "length: %d, string: %s\n"
 invalid_option_txt:   .string "invalid option!\n"
 
+fmt_scan_ij:          .string " %hhu %hhu"
+
 .align 8 # Align address to multiple of 8
 switch_choice_jmp_tbl:
 .quad   choice_31               # 31 - valid option
@@ -77,7 +79,29 @@ run_func:
     jmp     end_run_runc
 
     choice_34:
-    and     %rax, %rax
+    subq    $16, %rsp                 # allocate 16 more bytes in the stack
+    movb    $0, -16(%rbp)             # Initialize i to 0
+    movb    $0, -15(%rbp)             # Initialize j to 0
+    movq    %rdx, -32(%rbp)
+    movq    %rsi, -24(%rbp)
+    # Scan i & j from the user
+    movq    $fmt_scan_ij, %rdi         # set the format as the first input for scanf (use 8 bytes (rdi and not e.g. edi) for scanf because man page shows signature that shows that first&second arguments are char* and in 64-bit architecture this is 8 bytes)
+    leaq    -16(%rbp), %rsi
+    leaq    -15(%rbp), %rdx
+    xorb    %al, %al
+    call    scanf                      # TODO: Perhaps I can use the return value of scanf to make sure the input was valid
+    # check scanf return value - should be two because we only scan 2 numbers i and j
+    cmpq    $2, %rax           # Expecting 2 inputs
+    jne     invalid_input      # If not, jump to error handling
+
+    movzbl  -16(%rbp), %edx
+    movzbl  -15(%rbp), %ecx
+
+    movq    -32(%rbp), %rdi
+    movq    -24(%rbp), %rsi
+    xorb    %al, %al
+    call    pstrijcpy
+    jmp     end_run_runc
 
     choice_37:
     movq   %rsi, -16(%rbp)        # save pointer to pstr1
@@ -101,10 +125,10 @@ run_func:
     call    printf
     jmp     end_run_runc
 
-
-
-
     invalid_option:
+    and     %rax, %rax
+
+    invalid_input:
     and     %rax, %rax
 
     end_run_runc:
