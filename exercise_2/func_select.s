@@ -27,6 +27,7 @@ run_func:
     pushq	%rbp                    # save the old frame pointer
     movq	%rsp,	%rbp	        # create the new frame pointer
 
+    subq    $32, %rsp
 
     leal    -31(%edi), %eax
     cmpl    $6, %eax
@@ -34,7 +35,23 @@ run_func:
     jmp     *switch_choice_jmp_tbl(,%eax,8)
     
     choice_31:
-    and     %rax, %rax
+    # Print the prompt asking for the seed
+    movq   %rsi, -16(%rbp)        # save pointer to pstr1
+    movq   %rdx, -8(%rbp)        # save pointer to pstr2
+
+    movq    %rsi, %rdi  # set pstr1 as the first argument
+    xorq    %rax, %rax  # clear rax before function call (customary)
+    call    pstrlen     # pstrlen(&pstr1);
+
+    movq    %rax, -16(%rbp)   # save the returned length from pstrlen in the stack (instead of pointer to pstr1 because we are done with it)
+    movq    -8(%rbp), %rdi
+    xorq    %rax, %rax
+    call    pstrlen
+    movzb   %al, %rdx
+    movq    $choise_31_txt, %rdi
+    movq    -16(%rbp), %rsi
+    xorb    %al, %al
+    call    printf
 
     choice_33:
     and     %rax, %rax
