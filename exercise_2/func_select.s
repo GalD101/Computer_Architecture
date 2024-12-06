@@ -27,7 +27,7 @@ run_func:
     pushq	%rbp                    # save the old frame pointer
     movq	%rsp,	%rbp	        # create the new frame pointer
 
-    subq    $32, %rsp
+    subq    $16, %rsp
 
     leal    -31(%edi), %eax
     cmpl    $6, %eax
@@ -35,9 +35,8 @@ run_func:
     jmp     *switch_choice_jmp_tbl(,%eax,8)
     
     choice_31:
-    # Print the prompt asking for the seed
     movq   %rsi, -16(%rbp)        # save pointer to pstr1
-    movq   %rdx, -8(%rbp)        # save pointer to pstr2
+    movq   %rdx, -8(%rbp)         # save pointer to pstr2
 
     movq    %rsi, %rdi  # set pstr1 as the first argument
     xorq    %rax, %rax  # clear rax before function call (customary)
@@ -52,9 +51,30 @@ run_func:
     movq    -16(%rbp), %rsi
     xorb    %al, %al
     call    printf
+    jmp     end_run_runc
 
     choice_33:
-    and     %rax, %rax
+    movq   %rsi, -16(%rbp)        # save pointer to pstr1
+    movq   %rdx, -8(%rbp)         # save pointer to pstr2
+
+    movq    %rsi, %rdi  # set pstr1 as the first argument
+    xorq    %rax, %rax  # clear rax before function call (customary)
+    call    swapCase    # swapCase(&pstr1);
+    movq    $choise_33_34_37_txt, %rdi
+    movzb   (%rax), %rsi
+    leaq    1(%rax), %rdx
+    xorb    %al, %al
+    call    printf
+
+    movq    -8(%rbp), %rdi
+    xorq    %rax, %rax
+    call    swapCase
+    movq    $choise_33_34_37_txt, %rdi
+    movzb   (%rax), %rsi
+    leaq    1(%rax), %rdx
+    xorb    %al, %al
+    call    printf
+    jmp     end_run_runc
 
     choice_34:
     and     %rax, %rax
@@ -65,7 +85,7 @@ run_func:
     invalid_option:
     and     %rax, %rax
 
-
-    movq    %rbp, %rsp              # close pstrlen activation frame
-    popq    %rbp                    # restore activation frame
-    ret
+    end_run_runc:
+        movq    %rbp, %rsp              # close pstrlen activation frame
+        popq    %rbp                    # restore activation frame
+        ret
