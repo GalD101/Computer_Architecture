@@ -2,9 +2,10 @@
 # USE THE STACK INSTEAD OF REGISTERS LIKE R8 AND R9 OR MAYBE NOT????
 .extern printf
 
-// .section .rodata
+.section .rodata
 
-// invalid_inpt_msg:          .string "invalid input!\n"
+invalid_inpt_msg:          .string "invalid input!\n"
+too_long_msg:              .string "cannot concatenate strings!\n"
 
 
 .section .text
@@ -13,27 +14,13 @@
 .type pstrlen, @function
 # TODO: MAYBE IT IS BETTER TO SIMPLY RETURN THE LEN PROPERTY I.E. %rdi + 1
 pstrlen:
-    # boiler-plate code (copied from the examples in the exercise) to create stack frame (I think)
-    pushq	%rbp                    # save the old frame pointer
-    movq	%rsp,	%rbp	        # create the new frame pointer
+    pushq   %rbp
+    movq    %rsp,   %rbp
 
-    xorb    %cl, %cl                # clear %cl, which we will use as a counter.
-    
-    pstrlen_loop:
-        # check every character in sequence
-        # ;if null byte - quit the loop, otherwise - increment counter by 1
-        cmpb    $0, 1(%rdi, %rcx, 1) # %rdi + 1*%cl
-        je      end_pstrlen_loop
-        incb    %cl
-        jmp     pstrlen_loop
+    movzbl  (%rdi), %eax  # Load the length byte into %eax
 
-    end_pstrlen_loop:
-        xorq    %rax, %rax             # clear %rax
-        movb    %cl, %al               # set %al to the counter value
-
-
-    movq    %rbp, %rsp              # close pstrlen activation frame
-    popq    %rbp                    # restore activation frame
+    movq    %rbp, %rsp
+    popq    %rbp
     ret
 
 .global swapCase
@@ -154,8 +141,7 @@ pstrijcpy:
         ret
 
     invalid_input_pstrijcpy:
-    # TODO
-        movq    $'L', %rdi
+        movq    $invalid_inpt_msg, %rdi
         xor     %rax, %rax
         call    printf
         xorq    %rax, %rax
@@ -176,20 +162,25 @@ pstrcat:
     # dst + src -> dst
 
     # save len in caller saved registers:
-    movzbw    (%rdi), %r10w           # load length of dst into the lower part of %r10
-    movzbw    (%rsi), %r11w           # load length of src into the lower part of %r11
+    movq    %rdi, %rax
+    movzbw  (%rax), %r10w           # load length of dst into the lower part of %r10
+    movq    %rsi, %rax
+    movzbw  (%rax), %r11w           # load length of src into the lower part of %r11
 
     # calculate the length of the new string
     addb    %r10b, %r11b              # %r11 = %r11 + %r10
 
     # check if the new string is too long
     cmpb    $254, %r11b               # check if %r11 > 254. %r11 is the new len of dst and will be updated after copying
-    ja      invalid_input_pstrcat     # above because len is unsigned
+    ja      too_long                  # above because len is unsigned
 
     xorq    %rcx, %rcx                # set %rcx to 0, we will use it as a counter.
     movzbw  (%rsi), %r11w             # load length of src into the lower part of %r11 (again)
 
     # calculate the address of the end of the dst string
+    movzbq  %r10b, %rax
+    xorq    %r10, %r10
+    movb    %al, %r10b
     leaq    1(%rdi, %r10, 1), %r10
 
     loop_copy_pstrcat:
@@ -212,10 +203,8 @@ pstrcat:
         ret
 
 
-    invalid_input_pstrcat:
-    # TODO
-        movq    $'L', %rdi
+    too_long:
+        movq    $too_long_msg, %rdi
         xor     %rax, %rax
         call    printf
-        xorq    %rax, %rax
         jmp epilogue_pstrcat

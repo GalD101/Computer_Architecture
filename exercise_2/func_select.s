@@ -4,6 +4,7 @@
 choise_31_txt:        .string "first pstring length: %d, second pstring length: %d\n"
 choise_33_34_37_txt:  .string "length: %d, string: %s\n"
 invalid_option_txt:   .string "invalid option!\n"
+invalid_inpt_txt:     .string "invalid input!\n"
 
 fmt_scan_ij:          .string " %hhu %hhu"
 
@@ -53,7 +54,7 @@ run_func:
     movq    -16(%rbp), %rsi
     xorb    %al, %al
     call    printf
-    jmp     end_run_runc
+    jmp     end_run_func
 
     choice_33:
     movq   %rsi, -16(%rbp)        # save pointer to pstr1
@@ -76,7 +77,7 @@ run_func:
     leaq    1(%rax), %rdx
     xorb    %al, %al
     call    printf
-    jmp     end_run_runc
+    jmp     end_run_func
 
     choice_34:
     subq    $16, %rsp                 # allocate 16 more bytes in the stack
@@ -94,44 +95,87 @@ run_func:
     cmpq    $2, %rax           # Expecting 2 inputs
     jne     invalid_input      # If not, jump to error handling
 
+    # check that i <= j <==> !(i > j)
+    movb    -15(%rbp), %cl
+    movb    -16(%rbp), %dl
+    cmpb    %cl, %dl
+    ja      invalid_input
+
+    # save len in caller saved registers:
+    movq    -32(%rbp), %rax
+    movzbw  (%rax), %r10w           # load length of dst into the lower part of %r10
+    movq    -24(%rbp), %rax
+    movzbw  (%rax), %r11w           # load length of src into the lower part of %r11
+
+    # calculate min(len of src, len of dst)
+    # cool trick to implement min(or max) function: https://stackoverflow.com/questions/42760054/assembly-find-max-of-two-value
+    # cmovb only works for 16 bit registers and higher :( that's why I need to use r10e and r11w instead of the smaller r10b and r11b
+    cmpb    %r10b, %r11b
+    cmovb   %r11w, %r10w             # suppose dst(src) is shorter, if it is not shorter then src(dst) must be shorter.
+    cmpb    %r10b, %cl               # check that j < min(len of src, len of dst) <==> !(j >= min(len of src, len of dst))
+    jae     invalid_input
+
     movzbl  -16(%rbp), %edx
     movzbl  -15(%rbp), %ecx
 
-    movq    -32(%rbp), %rdi
-    movq    -24(%rbp), %rsi
+    movq    -32(%rbp), %rSi
+    movq    -24(%rbp), %rDi
     xorb    %al, %al
     call    pstrijcpy
-    jmp     end_run_runc
 
-    choice_37:
-    movq   %rsi, -16(%rbp)        # save pointer to pstr1
-    movq   %rdx, -8(%rbp)         # save pointer to pstr2
-    movq    %rsi, %rdi
-    movq    %rdx, %rdi
-    xorb    %al, %al
-    call pstrcat
-
+    # print
     movq    $choise_33_34_37_txt, %rdi
     movzb   (%rax), %rsi
     leaq    1(%rax), %rdx
     xorb    %al, %al
     call    printf
 
-    movq    -16(%rbp), %rdx
     movq    $choise_33_34_37_txt, %rdi
-    movzb   (%rdx), %rsi
-    leaq    1(%rdx), %rdx
+    movq    -32(%rbp), %r10
+    movzb   (%r10), %rsi
+    leaq    1(%r10), %rdx
     xorb    %al, %al
     call    printf
-    jmp     end_run_runc
+    jmp     end_run_func
+
+    choice_37:
+    movq    %rsi, -16(%rbp)        # save pointer to pstr1
+    movq    %rdx, -8(%rbp)         # save pointer to pstr2
+    movq    %rsi, %rdi
+    movq    %rdx, %rsi
+    xorb    %al, %al
+    call pstrcat
+
+    movq    $choise_33_34_37_txt, %rdi
+    movq    (%rax), %r10
+    movzbw  (%r10), %r10w
+    movq    (%r10), %rsi
+    leaq    1(%r10), %rdx
+    xorb    %al, %al
+    call    printf
+
+
+    movq    -8(%rbp), %r10
+    movzbw  (%r10), %r10w
+    movq    $choise_33_34_37_txt, %rdi
+    movq    (%r10), %rsi
+    leaq    1(%r10), %rdx
+    xorb    %al, %al
+    call    printf
+    jmp     end_run_func
 
     invalid_option:
-    and     %rax, %rax
+        movq    $invalid_option_txt, %rdi
+        xor     %rax, %rax
+        call    printf
+        jmp     end_run_func
 
     invalid_input:
-    and     %rax, %rax
+        movq    $invalid_inpt_txt, %rdi
+        xor     %rax, %rax
+        call    printf
 
-    end_run_runc:
-        movq    %rbp, %rsp              # close pstrlen activation frame
-        popq    %rbp                    # restore activation frame
+    end_run_func:
+        movq    %rbp, %rsp
+        popq    %rbp
         ret
