@@ -9,7 +9,7 @@ typedef struct {
 // Declare the swapCase function
 extern void swapCase(Pstring* pstr);
 extern char pstrlen(Pstring* pstr);
-extern Pstring* pstrijcpy(Pstring* dst, Pstring* src, char i, char j);
+extern Pstring* pstrijcpy(Pstring* dst, Pstring* src, unsigned char i, unsigned char j);
 extern Pstring* pstrcat(Pstring* dst, Pstring* src);
 extern void run_func(int choice, Pstring *pstr1, Pstring *pstr2);
 
@@ -28,7 +28,7 @@ int main() {
     printf("Original string: %s\n", pstr.str);
     printf("Original string2: %s\n", pstr2.str);
 
-    run_func(37, &pstr, &pstr2);
+    run_func(34, &pstr, &pstr2);
 
     printf("AAAAAAAAAAAAAAAaaOriginal string: %s\n", pstr.str);
     printf("AAAAAAAAAAAAAAAaaaaaaaaOriginal string2: %s\n", pstr2.str);
