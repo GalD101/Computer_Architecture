@@ -80,7 +80,29 @@ run_func:
     and     %rax, %rax
 
     choice_37:
-    and     %rax, %rax
+    movq   %rsi, -16(%rbp)        # save pointer to pstr1
+    movq   %rdx, -8(%rbp)         # save pointer to pstr2
+    movq    %rsi, %rdi
+    movq    %rdx, %rdi
+    xorb    %al, %al
+    call pstrcat
+
+    movq    $choise_33_34_37_txt, %rdi
+    movzb   (%rax), %rsi
+    leaq    1(%rax), %rdx
+    xorb    %al, %al
+    call    printf
+
+    movq    -16(%rbp), %rdx
+    movq    $choise_33_34_37_txt, %rdi
+    movzb   (%rdx), %rsi
+    leaq    1(%rdx), %rdx
+    xorb    %al, %al
+    call    printf
+    jmp     end_run_runc
+
+
+
 
     invalid_option:
     and     %rax, %rax
