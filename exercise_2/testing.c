@@ -28,7 +28,10 @@ int main() {
     printf("Original string: %s\n", pstr.str);
     printf("Original string2: %s\n", pstr2.str);
 
-    run_func(33, &pstr, &pstr2);
+    run_func(37, &pstr, &pstr2);
+
+    printf("AAAAAAAAAAAAAAAaaOriginal string: %s\n", pstr.str);
+    printf("AAAAAAAAAAAAAAAaaaaaaaaOriginal string2: %s\n", pstr2.str);
     // Call the pstrijcpy function
     // pstr2 = *(pstrijcpy(&pstr, &pstr2, 5, 9));
     pstrijcpy(&pstr, &pstr2, 7, 11);
