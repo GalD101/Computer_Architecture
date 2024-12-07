@@ -1,5 +1,3 @@
-# TODOOOOO !!!!!!!!!!!!!!!!!!
-# USE THE STACK INSTEAD OF REGISTERS LIKE R8 AND R9 OR MAYBE NOT????
 .extern printf
 
 .section .rodata
@@ -7,17 +5,16 @@
 invalid_inpt_msg:          .string "invalid input!\n"
 too_long_msg:              .string "cannot concatenate strings!\n"
 
-
 .section .text
 
 .global pstrlen
 .type pstrlen, @function
-# TODO: MAYBE IT IS BETTER TO SIMPLY RETURN THE LEN PROPERTY I.E. %rdi + 1
 pstrlen:
     pushq   %rbp
     movq    %rsp,   %rbp
 
-    movzbl  (%rdi), %eax  # Load the length byte into %eax
+    movzb  (%rdi), %al  # Load the length byte into %eax
+    #movzbl  (%rdi), %eax  # Load the length byte into %eax
 
     movq    %rbp, %rsp
     popq    %rbp
