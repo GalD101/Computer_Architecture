@@ -90,6 +90,8 @@ pstrijcpy:
     pushq	%rbp                    # save the old frame pointer
     movq	%rsp,	%rbp	        # create the new frame pointer
 
+    subq    $16, %rsp
+    movq    %rdi, -16(%rbp)    # save pointer to dst
     # %rdi is dst, %rsi is src, %dl is i, %cl is j
     # src[i, j] -> dst[i, j]
 
@@ -135,7 +137,7 @@ pstrijcpy:
 
 
     epilogue_pstrijcpy:
-        movq    %rdi, %rax          # return the pointer to the string
+        movq    -16(%rbp), %rax     # restore pointer to dst (it won't change but the value it holds in the address it points to might)
         movq    %rbp, %rsp          # close pstrijcpy activation frame
         popq    %rbp                # restore activation frame
         ret
@@ -144,7 +146,6 @@ pstrijcpy:
         movq    $invalid_inpt_msg, %rdi
         xor     %rax, %rax
         call    printf
-        xorq    %rax, %rax
         jmp epilogue_pstrijcpy
 
 
@@ -158,6 +159,8 @@ pstrcat:
     pushq	%rbp                    # save the old frame pointer
     movq	%rsp,	%rbp	        # create the new frame pointer
 
+    subq    $16, %rsp
+    movq    %rdi, -16(%rbp)    # save pointer to dst
     # %rdi is dst, %rsi is src
     # dst + src -> dst
 
@@ -169,10 +172,11 @@ pstrcat:
 
     # calculate the length of the new string
     addb    %r10b, %r11b              # %r11 = %r11 + %r10
+    jc      too_long                  # If Carry Flag (CF) is set, sum > 255
 
-    # check if the new string is too long
-    cmpb    $254, %r11b               # check if %r11 > 254. %r11 is the new len of dst and will be updated after copying
-    ja      too_long                  # above because len is unsigned
+    # check if the new string is too long (it is exactly 255 characters long)
+    cmpb    $255, %r11b               # check if %r11 = 255. %r11 is the new len of dst and will be updated after copying
+    je      too_long                  # above because len is unsigned
 
     xorq    %rcx, %rcx                # set %rcx to 0, we will use it as a counter.
     movzbw  (%rsi), %r11w             # load length of src into the lower part of %r11 (again)
@@ -192,13 +196,14 @@ pstrcat:
         jnz     loop_copy_pstrcat
 
     
-    # update the length of the new string TODO
-    addb    (%rdi), %cl
-    movb    %cl, (%rdi)
+    movb (%rdi), %al       # Load the first byte at address [%rdi] into %al
+    addb %cl, %al          # Add the value in %cl to %al
+    movb %al, (%rdi)       # Store the result back to the memory location [%rdi]
+
 
     epilogue_pstrcat:
-        movq    %rdi, %rax          # return the pointer to the string
-        movq    %rbp, %rsp          # close pstrcat activation frame
+        movq    -16(%rbp), %rax     # restore pointer to dst (it won't change but the value it holds in the address it points to might)
+        movq    %rbp, %rsp          # close pstrijcpy activation frame
         popq    %rbp                # restore activation frame
         ret
 
