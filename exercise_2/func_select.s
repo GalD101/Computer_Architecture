@@ -95,31 +95,13 @@ run_func:
     cmpq    $2, %rax           # Expecting 2 inputs
     jne     invalid_input      # If not, jump to error handling
 
-    # check that i <= j <==> !(i > j)
-    movb    -15(%rbp), %cl
-    movb    -16(%rbp), %dl
-    cmpb    %cl, %dl
-    ja      invalid_input
-
-    # save len in caller saved registers:
-    movq    -32(%rbp), %rax
-    movzbw  (%rax), %r10w           # load length of dst into the lower part of %r10
-    movq    -24(%rbp), %rax
-    movzbw  (%rax), %r11w           # load length of src into the lower part of %r11
-
-    # calculate min(len of src, len of dst)
-    # cool trick to implement min(or max) function: https://stackoverflow.com/questions/42760054/assembly-find-max-of-two-value
-    # cmovb only works for 16 bit registers and higher :( that's why I need to use r10e and r11w instead of the smaller r10b and r11b
-    cmpb    %r10b, %r11b
-    cmovb   %r11w, %r10w             # suppose dst(src) is shorter, if it is not shorter then src(dst) must be shorter.
-    cmpb    %r10b, %cl               # check that j < min(len of src, len of dst) <==> !(j >= min(len of src, len of dst))
-    jae     invalid_input
+    
 
     movzbl  -16(%rbp), %edx
     movzbl  -15(%rbp), %ecx
 
-    movq    -32(%rbp), %rSi
-    movq    -24(%rbp), %rDi
+    movq    -32(%rbp), %rsi
+    movq    -24(%rbp), %rdi
     xorb    %al, %al
     call    pstrijcpy
 
@@ -144,21 +126,19 @@ run_func:
     movq    %rsi, %rdi
     movq    %rdx, %rsi
     xorb    %al, %al
-    call pstrcat
+    call    pstrcat
 
     movq    $choise_33_34_37_txt, %rdi
-    movq    (%rax), %r10
-    movzbw  (%r10), %r10w
-    movq    (%r10), %rsi
-    leaq    1(%r10), %rdx
+    movzbq  (%rax), %r10
+    movzbq  %r10b, %rsi
+    leaq    1(%rax), %rdx
     xorb    %al, %al
     call    printf
 
 
-    movq    -8(%rbp), %r10
-    movzbw  (%r10), %r10w
     movq    $choise_33_34_37_txt, %rdi
-    movq    (%r10), %rsi
+    movq    -8(%rbp), %r10
+    movzbq  (%r10), %rsi
     leaq    1(%r10), %rdx
     xorb    %al, %al
     call    printf
@@ -176,6 +156,7 @@ run_func:
         call    printf
 
     end_run_func:
+        xorq    %rax, %rax
         movq    %rbp, %rsp
         popq    %rbp
         ret
