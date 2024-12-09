@@ -2,18 +2,21 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build1",
+            "label": "make it",
             "type": "shell",
-            "command": "gcc",
-            "args": [
-                "-g",
-                "-no-pie",
-                "testing.o",
-                "pstring.o",
-                "func_select.o",
-                "-o",
-                "test_swapcase",
-            ],
+            "command": "make",
+            // "label": "build1",
+            // "type": "shell",
+            // "command": "gcc",
+            // "args": [
+            //     "-g",
+            //     "-no-pie",
+            //     "testing.o",
+            //     "pstring.o",
+            //     "func_select.o",
+            //     "-o",
+            //     "test_swapcase",
+            // ],
             // "args": [
             //     "-g",
             //     "testing.o",

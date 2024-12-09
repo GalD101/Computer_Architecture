@@ -5,7 +5,7 @@
             "name": "Debug Assembly Program",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/test_swapcase",
+            "program": "${workspaceFolder}/pstrings",
             "args": [],
             "stopAtEntry": true,
             "cwd": "${workspaceFolder}",
@@ -25,7 +25,7 @@
                 }
             ],
             "miDebuggerPath": "/usr/bin/gdb",
-            "preLaunchTask": "build1"
+            "preLaunchTask": "make it"
         }
     ]
 }
