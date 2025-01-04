@@ -1,4 +1,4 @@
-// NOT FINISHED I JUST WANT TO TEST THINGS
+/* 322558297 Gal Dali */
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -22,32 +22,6 @@ typedef struct cache_s {
 cache_t initialize_cache(uchar s, uchar t, uchar b, uchar E);
 uchar read_byte(cache_t cache, uchar* start, long int off);
 void write_byte(cache_t cache, uchar* start, long int off, uchar new);
-
-int main() {
-    int n;
-    printf("Size of data: ");
-    scanf("%d", &n);
-    uchar* mem = malloc(n);
-    printf("Input data >> ");
-    for (int i = 0; i < n; i++)
-        scanf("%hhd", mem + i);
-
-    int s, t, b, E;
-    printf("s t b E: ");
-    scanf("%d %d %d %d", &s, &t, &b, &E);
-    cache_t cache = initialize_cache(s, t, b, E);
-
-    while (1) {
-    scanf("%d", &n);
-    if (n < 0) break;
-    read_byte(cache, mem, n);
-    }
-
-    puts("");
-    print_cache(cache);
-
-    free(mem);
-}
 
 cache_t initialize_cache(uchar s, uchar t, uchar b, uchar E) {
     cache_t cache;
@@ -143,10 +117,10 @@ uchar read_byte(cache_t cache, uchar* start, long int off) {
     offCopy = offCopy >> s;
 
     // Calculate the tag
-    long int tag = calculateLastNBits(offCopy, t);
+    long int tag = offCopy;
 
     cache_line_t* set = cache.cache[setIndex];
-    uchar leastFrequentVal = set ? set[0].frequency : 0;
+    uchar leastFrequentVal = set ? set[0].frequency : 255;
     cache_line_t* leastFrequentPtr = set;
     cache_line_t* openSpot = NULL;
     for (int i = 0; i < E; i++) {
@@ -157,7 +131,7 @@ uchar read_byte(cache_t cache, uchar* start, long int off) {
             }
 
             // keep hold of the least frequent address in case of a conflict/capacity miss
-            if (openSpot == NULL && leastFrequentVal > set[i].frequency) {
+            if (openSpot == NULL && set[i].frequency < leastFrequentVal) {
                 leastFrequentVal = set[i].frequency;
                 leastFrequentPtr = set + i;
             }
@@ -177,30 +151,11 @@ uchar read_byte(cache_t cache, uchar* start, long int off) {
     return occupy_spot(start, off, leastFrequentPtr, tag, B, block, NULL);
 }
 
-// int main() {
-//     uchar arr[] = {1, 2, 3, 4, 5, 6, 7, 8};
-//     cache_t cache = initialize_cache(1, 1, 1, 2);
-//     read_byte(cache, arr, 0);
-//     read_byte(cache, arr, 1);
-//     read_byte(cache, arr, 2);
-//     read_byte(cache, arr, 6);
-//     read_byte(cache, arr, 7);
-//     print_cache(cache);
-
-//     return 0;
-// }
-
-// I need to modify the array (start) because this is write-through
-// I need to update the cache too
 void write_byte(cache_t cache, uchar* start, long int off, uchar new) {
     
-    // TODO: Create a helper function to validate input
     if ((cache.cache == NULL) || (start == NULL) || (new == NULL)) {
         return;
     }
-
-    // write-through. Update the ram
-    start[off] = new;
 
     // Calculate all parameters
     uchar s = cache.s;
@@ -226,41 +181,20 @@ void write_byte(cache_t cache, uchar* start, long int off, uchar new) {
     offCopy = offCopy >> s;
 
     // Calculate the tag
-    long int tag = calculateLastNBits(offCopy, t);
-
+    long int tag = offCopy;
 
     cache_line_t* set = cache.cache[setIndex];
-    uchar leastFrequentVal = set ? set[0].frequency : 0;
-    cache_line_t* leastFrequentPtr = set;
-    cache_line_t* openSpot = NULL;
     for (int i = 0; i < E; i++) {
-        if (set[i].valid) {
-            if (set[i].tag == tag) {
-                set[i].frequency++;
-                set[i].block[block] = new; // cache hit!
-            }
-
-            // keep hold of the least frequent address in case of a conflict/capacity miss
-            if (openSpot == NULL && leastFrequentVal > set[i].frequency) {
-                leastFrequentVal = set[i].frequency;
-                leastFrequentPtr = set + i;
-            }
-
-        }
-        else if (openSpot == NULL) {
-            // occupy the first open spot found
-            openSpot = set + i;
+        if ((set[i].valid) && (set[i].tag == tag)) {
+            set[i].frequency++;
+            set[i].block[block] = new; // cache hit!
+            start[off] = new; // write-through. Update the ram
+            return;
         }
     }
 
-    // cache miss
-    if (openSpot != NULL) {
-        occupy_spot(start, off, openSpot, tag, B, block, new);
-    }
-    
-    return occupy_spot(start, off, leastFrequentPtr, tag, B, block, new);
+    // cache miss - since this cache implements the no-write-allocate policy, we don't update the cache
 }
-
 
 void print_cache(cache_t cache) {
     int S = 1 << cache.s;
@@ -277,4 +211,30 @@ void print_cache(cache_t cache) {
             puts("");
         }
     }
+}
+
+int main() {
+    int n;
+    printf("Size of data: ");
+    scanf("%d", &n);
+    uchar* mem = malloc(n);
+    printf("Input data >> ");
+    for (int i = 0; i < n; i++)
+        scanf("%hhd", mem + i);
+
+    int s, t, b, E;
+    printf("s t b E: ");
+    scanf("%d %d %d %d", &s, &t, &b, &E);
+    cache_t cache = initialize_cache(s, t, b, E);
+    
+    while (1) {
+        scanf("%d", &n);
+        if (n < 0) break;
+        read_byte(cache, mem, n);
+    }
+    
+    puts("");
+    print_cache(cache);
+    
+    free(mem);
 }
