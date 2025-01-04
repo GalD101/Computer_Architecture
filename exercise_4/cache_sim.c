@@ -30,10 +30,8 @@ cache_t initialize_cache(uchar s, uchar t, uchar b, uchar E) {
     cache.b = b;
     cache.E = E;
 
-    uchar m = t + s + b;
     int S = 1 << s;
     int B = 1 << b;
-    unsigned long int C = B * E * S;
 
     // Allocate memory for S number of sets
     // Notice the pointer here (cache_line_t*).
@@ -67,7 +65,7 @@ long int calculateLastNBits(long int val, uchar len) {
     return val & mask;
 }
 
-uchar occupy_spot(uchar* start, long int off, cache_line_t* spot, long int tag, int B, long int block, uchar new) {
+uchar occupy_spot(uchar* start, long int off, cache_line_t* spot, long int tag, int B, long int block) {
     spot->valid = 1;
     spot->frequency = 1;
     spot->tag = tag;
@@ -77,13 +75,8 @@ uchar occupy_spot(uchar* start, long int off, cache_line_t* spot, long int tag, 
     for (int i = 0; i < B; i++) {
         spot->block[i] = start[off + i];
     }
-    if (new == NULL) {
-        return spot->block[block];
-    }
-
-    // update
-    spot->block[block] = new;
-    return NULL;
+    
+    return spot->block[block];
 }
 
 uchar read_byte(cache_t cache, uchar* start, long int off) {
@@ -95,11 +88,9 @@ uchar read_byte(cache_t cache, uchar* start, long int off) {
 
     // Calculate all parameters
     uchar s = cache.s;
-    uchar t = cache.t;
     uchar b = cache.b;
     uchar E = cache.E;
 
-    int S = 1 << s; // 2^s
     int B = 1 << b; // 2^b
 
     long int offCopy = off;
@@ -145,26 +136,22 @@ uchar read_byte(cache_t cache, uchar* start, long int off) {
 
     // cache miss
     if (openSpot != NULL) {
-        return occupy_spot(start, off, openSpot, tag, B, block, NULL);
+        return occupy_spot(start, off, openSpot, tag, B, block);
     }
     
-    return occupy_spot(start, off, leastFrequentPtr, tag, B, block, NULL);
+    return occupy_spot(start, off, leastFrequentPtr, tag, B, block);
 }
 
 void write_byte(cache_t cache, uchar* start, long int off, uchar new) {
     
-    if ((cache.cache == NULL) || (start == NULL) || (new == NULL)) {
+    if ((cache.cache == NULL) || (start == NULL)) {
         return;
     }
 
     // Calculate all parameters
     uchar s = cache.s;
-    uchar t = cache.t;
     uchar b = cache.b;
     uchar E = cache.E;
-
-    int S = 1 << s; // 2^s
-    int B = 1 << b; // 2^b
 
     long int offCopy = off;
 
