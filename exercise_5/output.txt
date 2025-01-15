@@ -1,0 +1,2 @@
+Time for !(a || b): 0.204211 seconds
+Time for !a & !b: 0.177094 seconds

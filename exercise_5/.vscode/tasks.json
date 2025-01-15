@@ -1,0 +1,38 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Build clique",
+        "type": "shell",
+        "command": "make",
+        "args": [],
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "detail": "Compiles main.c and max-clique.c"
+      },
+      {
+        "label": "Generate graph",
+        "type": "shell",
+        "command": "make",
+        "args": ["generate-graph"],
+        "detail": "Generates a random adjacency matrix"
+      },
+      {
+        "label": "Run clique",
+        "type": "shell",
+        "command": "make",
+        "args": ["run"],
+        "detail": "Runs the compiled clique program with graph.txt"
+      },
+      {
+        "label": "Clean",
+        "type": "shell",
+        "command": "make",
+        "args": ["clean"],
+        "detail": "Cleans all generated files"
+      }
+    ]
+  }
+  
