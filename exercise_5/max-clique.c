@@ -5,15 +5,29 @@
 #define MAX_VERTICES 100
 
 void printSolution(int vertices[], int size) {
-    for (int i = 0; i < size; i++) {
-        printf("%d ", vertices[i]);
+    int *end = vertices + size -1;
+
+    while (vertices < end) {
+        printf("%d ", *vertices++);
+        printf("%d ", *vertices++);
     }
+
+    end += 1;
+    while (vertices < end) {
+        printf("%d", *vertices++);
+    }
+
     printf("\n");
 }
 
-bool isClique(int graph[MAX_VERTICES][MAX_VERTICES], int clique[], int size) {
+bool isClique(int graph[MAX_VERTICES][MAX_VERTICES], int clique[], int size, int n) {
+    int* orgclique = clique;
     for (int i = 0; i < size; i++) {
+        int* cliquecpyj = orgclique;
+        int a = *clique++;
+        int an = a * n;
         for (int j = 0; j < size; j++) {
+            int b = *cliquecpyj++;
             if (i == j) {
                 continue;
             }
@@ -21,7 +35,8 @@ bool isClique(int graph[MAX_VERTICES][MAX_VERTICES], int clique[], int size) {
             // Time for !a & !b: 0.177094 seconds
             // I can changed using De Morgan's law to run faster
             // TODO: Should I do !a & !b or the other way around? I need to think what will be the case in the average case so it will use short-circuiting.
-            if (!graph[clique[i]][clique[j]] && !graph[clique[j]][clique[i]]) {
+            // I will also use loop unrolling and perform multiple comparisons at once
+            if (!(graph[a][b]) && !(graph[b][a])) {
                 return false;
             }
         }
@@ -30,14 +45,16 @@ bool isClique(int graph[MAX_VERTICES][MAX_VERTICES], int clique[], int size) {
 }
 
 void generateCombinations(int graph[MAX_VERTICES][MAX_VERTICES], int n, int *clique, int k, int start, int currentSize, int *maxSize, int *maxClique) {
+    int orgn = n;
     if (currentSize == k) {
-        if (isClique(graph, clique, k)) {
+        if (isClique(graph, clique, k, orgn)) {
             if (k > *maxSize) {
                 *maxSize = k;
 
                 // Temporary pointers so I won't have to fetch from memory everytime.
-                register int *dest = maxClique;
-                register int *src = clique;
+                int *dest = maxClique;
+                int *src = clique;
+
                 // I will use duff device similar to what we saw in recitation.
                 // I found this online and it looks almost identical to what we saw in class https://stackoverflow.com/questions/58002180/fast-copy-selected-elements-of-an-array-in-c
                 // P.S. OSINT is helpful, knowing how to google can be a good skill. check this out and ctrl F: duff: https://github.com/RangelReale/freesci-pnd/blob/e6bbd638a40c98caf3be899a0c1a20c7efd59b17/src/tools/bdf.c
