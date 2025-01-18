@@ -38,6 +38,7 @@ bool isClique(int graph[MAX_VERTICES][MAX_VERTICES], int clique[], int size, int
             // NOTE: I tried something like (*(graph[an + b])) and more variations but it doesn't work and I wasted hours on it and no progress :((((((((((((((((((((((((((((
             // wasted too much time on this annoying exercise. I quit. ex6 here I come. edit: ex6 is just an additional exercise and not replacing this annoying task :(
             // I tried sitting on this for hours and nothing works I hate this exercise
+            // I literaly wasted more than 6 hours and everything I tried failed I am so fucking done
             if (!(graph[a][b]) && !(graph[b][a])) return false;
         }
     }
