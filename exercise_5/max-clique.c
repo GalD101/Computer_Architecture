@@ -25,7 +25,6 @@ bool isClique(int graph[MAX_VERTICES][MAX_VERTICES], int clique[], int size, int
     for (int i = 0; i < size; i++) {
         int* cliquecpyj = orgclique;
         int a = *clique++;
-        int an = a * n;
         for (int j = 0; j < size; j++) {
             int b = *cliquecpyj++;
             if (i == j) {
@@ -36,9 +35,9 @@ bool isClique(int graph[MAX_VERTICES][MAX_VERTICES], int clique[], int size, int
             // I can changed using De Morgan's law to run faster
             // TODO: Should I do !a & !b or the other way around? I need to think what will be the case in the average case so it will use short-circuiting.
             // I will also use loop unrolling and perform multiple comparisons at once
-            if (!(graph[a][b]) && !(graph[b][a])) {
-                return false;
-            }
+            // NOTE: I tried something like (*(graph[an + b])) and more variations but it doesn't work and I wasted hours on it and no progress :((((((((((((((((((((((((((((
+            // wasted too much time on this annoying exercise. I quit. ex6 here I come.
+            if (!(graph[a][b]) && !(graph[b][a])) return false;
         }
     }
     return true;
