@@ -1,0 +1,24 @@
+Gal Dali XXXXXXXXX
+So I had no clue how to start but after opening the file with the suggested tool cutter, I noticed a fuction called give_flag.
+Since the hint I got when running the program normally (unmodified) was to jump, I first ran the program using gdb, break main, jump give_flag and voilà I got the flag. P.S. The flag was not shown when I initially ran strings on the file.
+Now I need to somehow change some bytes in the orginal ELF file so that it will jump to the address of give_flag.
+
+So I inspect the disassembly in cutter and I look at main - Instead of printing the "Trampoline" message I want to replace this by a jump instruction to the desired address (address of give_flag).
+First attempt: I will look for the hex 0x1148 (lea %rax, trampoline...) in the hex representation of the elf and will replace it by the hex representation of "jmp give_flag" - This did not work :( I now remember we saw something in recitation about a file saying where it begins execution so I will run elfread on the file.
+I ran "readelf -a patchwork" and I got that the "Entry point address" is 0x1050. Let's make sure that this is present in elf when viewing from hexedit - this did not work as well :( (edit from the future - it was indeed present, I just forgot that things look a little different in little endian). I will watch the recitation again to see how to do it properly. I just realized that when looking for bytes I need to understand that this is little endian. I tried changing the entry of the file from 0x1050 to 0x117d (address of give_flag) but when I run I got segmentation fault.
+I looked at the main function in the disassembly in cutter and I now see a call to give_flag! before that there is a je instruction so all I need to do is to change it from je to jne!
+I rewatched the recitation and I think I have a plan:
+1. find the offset/address where main starts
+2. count 0x0000116a(address of je I want to modify) - 0x00001139(address where main begins in the Cutter disassembler)
+3. look at (the value I found in step 1) + (the value I calculated in step 2). I should see a je instruction which has a byte code of 75 according to wikipedia here https://en.wikipedia.org/wiki/X86_instruction_listings. Change this 75 (je) to 7F (jne).
+
+
+1. I look for the offset of main in readelf. main is located inside the .text section - for the .text section the address = offset and it is 0x1050 (same as entrypoint).
+2. I use Python to calculate: python -c "print(hex(0x0000116a - 0x00001139))" = 0x31 (49 in decimal)
+3. Go to address: python -c "print(hex(0x1050 + 0x31))" = 0x1081 (4225 in decimal)
+That didn't work :(
+
+So while in hexedit I decided to just look aruond in places I suspect I need to change - I realized I just need to look for a 75 (or 74... seventy something is a jump address!) I looked at the address cutter told me the je command is at (0x0000116a) and I saw 74. I tried to change it to 7F (probably jne) and it worked! It was not as complex as I thought it is.
+
+Solution: go to cutter - see where the je instruction I want to modify (it is actually 74 not 75 like I mentioned earlier), this is the address 0x0000116a. look at this address in hexedit - change 74 (je) to 7F (probably jne, maybe jng... either way it works!) and bob's your uncle.
+
